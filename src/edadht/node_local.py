@@ -1,7 +1,8 @@
 import hashlib
 from typing import Final, List, Dict
 
-KEY_SPACE: Final[int] = 160
+KEY_SPACE: Final[int] = 3  # Inicialmente pequeno para testes
+
 
 class ChordNode:
     """
@@ -14,21 +15,21 @@ class ChordNode:
     onde p é seu predecessor e n é o próprio nó.
     """
 
-    def __init__(self, key) -> None:
+    def __init__(self, key: str) -> None:
         # Guarda o ID do nó no espaço de chaves da círculo
-        self.id = hash(key)
+        self.id: int = self.hash(key)
 
-        self.peers: List[str]  # ???
+        self.id_str: str = key
 
         # O "banco de dados" responsável por guardar os valores pelos quais o nó é responsável,
         # que são os valores de chaves entre o id de seu predecessor (inclusivo) e o seu próprio ID
         self.data: Dict[str, str]
 
-        # Identificação do nó antecessor
-        self.prev: ChordNode = self
+        # Ponteiro para o nó anterior
+        self.prev: ChordNode
 
-        # Identificação do nó posterior
-        self._next: ChordNode = self
+        # Ponteiro para o próximo nó
+        self._next: ChordNode
 
         # Guarda as referências para os nós com pulos log(n)
         self.finger_table: List[ChordNode]
@@ -38,31 +39,32 @@ class ChordNode:
         return self.finger_table[0]
 
     @next.setter
-    def successor(self, new_next) -> None:
+    def next(self, new_next: "ChordNode") -> None:
+        self._next = new_next
         self.finger_table[0] = new_next
 
     def hash(self, key: str) -> int:
         return int(hashlib.sha1(key.encode()).hexdigest(), 16) % (2**KEY_SPACE)
 
-    def generate_finger_table(self) -> None:
+    def update_finger_table(self, existingNode=None) -> None:
         """Preenche/atualiza a finger table do nó"""
 
         for i in range(KEY_SPACE):
             # Retorna o valor int da posição que a seta aponta no círculo
             target = (self.id + 2**i) % (2**KEY_SPACE)
 
-            # Corrige a seta da finger table para um nó inicializado
-            self.finger_table[i] = self.find_sucessor(target)
+            if not existingNode:
+                existingNode = self
 
-    def find_sucessor(self, key: str) -> "ChordNode":
-        key_hash = self.hash(key)
+            self.finger_table[i] = self.find_successor(target)
 
+    def find_successor(self, key: int) -> "ChordNode":
         # Se o intervalo entre o predecessor e ele (não-inclusivo) conter a chave, retornar ele mesmo.
-        if key_hash in range(self.prev.id, self.id):
+        if key in range(self.prev.id, self.id):
             return self
 
         # Se o intervalo entre ele e o sucessor (não-inclusivo) conter a chave, retornar o sucessor.
-        if key_hash in range(self.id, self.next.id):
+        if key in range(self.id, self.next.id):
             return self.next
 
         """
@@ -71,27 +73,56 @@ class ChordNode:
         até encontrar um nó que seja menor que a chave em questão,
         e então delega a busca recursivamente para este nó.
         """
-        for i in range(KEY_SPACE-1, -1, -1):
+        for i in range(KEY_SPACE - 1, -1, -1):
             preceding_node = self.finger_table[i]
-            if preceding_node.id < key_hash:
+            if preceding_node.id < key:
                 break
         else:
             preceding_node = self
-            
-        return preceding_node.find_sucessor(key)
+
+        return preceding_node.find_successor(key)
 
     def get(self, key: str) -> str:
-        responsible_node = self.find_sucessor(key)
-        
+        key_hash = self.hash(key)
+        responsible_node = self.find_successor(key_hash)
+
         if responsible_node == self:
             return self.data[key]
 
         return responsible_node.get(key)
 
     def put(self, key: str, value: str) -> None:
-        responsible_node = self.find_sucessor(key)
-        
+        key_hash = self.hash(key)
+        responsible_node = self.find_successor(key_hash)
+
         if responsible_node == self:
             self.data[key] = value
 
         responsible_node.put(key, value)
+
+    def join(self, existingNode=None) -> None:
+        if existingNode:
+            self.successor = existingNode.find_successor(self.id)
+            self.prev = self.successor.prev
+            self.data = self.successor.pass_data(self.id)
+            self.update_finger_table(existingNode)
+
+            self.successor.prev.successor = self
+            self.successor.prev = self
+
+        else:
+            self.prev = self
+            self.next = self
+            self.update_finger_table()
+
+    def pass_data(self, stop: int) -> Dict[str, str]:
+        data_given: Dict[str, str] = {}
+
+        for key in self.data.keys():
+            if self.prev.id <= self.hash(key) < stop:
+                data_given[key] = self.data.pop(key)
+
+        return data_given
+
+    def stabilize(self) -> None:
+        self.update_finger_table(self.find_successor(self.id))
