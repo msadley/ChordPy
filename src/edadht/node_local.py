@@ -3,6 +3,12 @@ from typing import Final, List, Dict
 
 KEY_SPACE: Final[int] = 3  # Inicialmente pequeno para testes
 
+def in_interval(key, start, end):
+    # Evita problema no range com ciclo
+    if start < end:
+        return start < key <= end
+    else:
+        return key > start or key <= end
 
 class ChordNode:
     """
@@ -22,7 +28,7 @@ class ChordNode:
 
         # O "banco de dados" responsável por guardar os valores pelos quais o nó é responsável,
         # que são os valores de chaves entre o id de seu predecessor (inclusivo) e o seu próprio ID
-        self.data: Dict[str, str]
+        self.data: Dict[str, str] = {}
 
         # Ponteiro para o nó anterior
         self.prev: ChordNode
@@ -59,11 +65,11 @@ class ChordNode:
 
     def find_successor(self, key: int) -> "ChordNode":
         # Se o intervalo entre o predecessor e ele (não-inclusivo) conter a chave, retornar ele mesmo.
-        if key in range(self.prev.id, self.id):
+        if in_interval(key, self.prev.id, self.id):
             return self
-
+        
         # Se o intervalo entre ele e o sucessor (não-inclusivo) conter a chave, retornar o sucessor.
-        if key in range(self.id, self.next.id):
+        if in_interval(key, self.id, self.next.id):
             return self.next
 
         """
@@ -96,7 +102,6 @@ class ChordNode:
 
         if responsible_node == self:
             self.data[key] = value
-
         responsible_node.put(key, value)
 
     def join(self, existingNode=None) -> None:
