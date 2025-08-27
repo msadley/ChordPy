@@ -1,7 +1,8 @@
 import hashlib
-from typing import Final, List, Dict
+from typing import Final, Dict
 
 KEY_SPACE: Final[int] = 3  # Inicialmente pequeno para testes
+
 
 def in_interval(key, start, end):
     # Evita problema no range com ciclo
@@ -9,6 +10,7 @@ def in_interval(key, start, end):
         return start < key <= end
     else:
         return key > start or key <= end
+
 
 class ChordNode:
     """
@@ -24,7 +26,6 @@ class ChordNode:
     def __init__(self, key: str) -> None:
         # Guarda o ID do nó no espaço de chaves da círculo
         self.id: int = self.hash(key)
-        print(self.id)
 
         # O "banco de dados" responsável por guardar os valores pelos quais o nó é responsável,
         # que são os valores de chaves entre o id de seu predecessor (inclusivo) e o seu próprio ID
@@ -67,7 +68,7 @@ class ChordNode:
         # Se o intervalo entre o predecessor e ele (não-inclusivo) conter a chave, retornar ele mesmo.
         if in_interval(key, self.prev.id, self.id):
             return self
-        
+
         # Se o intervalo entre ele e o sucessor (não-inclusivo) conter a chave, retornar o sucessor.
         if in_interval(key, self.id, self.next.id):
             return self.next
@@ -92,7 +93,7 @@ class ChordNode:
         responsible_node = self.find_successor(key_hash)
 
         if responsible_node == self:
-            return self.data[key]
+            return self.data.get(key, "Key not found")
 
         return responsible_node.get(key)
 
@@ -102,17 +103,18 @@ class ChordNode:
 
         if responsible_node == self:
             self.data[key] = value
-        responsible_node.put(key, value)
+        else:
+            responsible_node.put(key, value)
 
     def join(self, existingNode=None) -> None:
         if existingNode:
-            self.successor = existingNode.find_successor(self.id)
-            self.prev = self.successor.prev
-            self.data = self.successor.pass_data(self.id)
+            self.next = existingNode.find_successor(self.id)
+            self.prev = self.next.prev
+            self.data = self.next.pass_data(self.id)
             self.update_finger_table(existingNode)
 
-            self.successor.prev.successor = self
-            self.successor.prev = self
+            self.next.prev.next = self
+            self.next.prev = self
 
         else:
             self.prev = self
@@ -137,5 +139,11 @@ class ChordNode:
     def print_finger_table(self) -> None:
         print(self.finger_table)
 
+    def getId(self) -> int:
+        return self.id
+
+    def getNext(self) -> "ChordNode":
+        return self._next
+
     def __repr__(self) -> str:
-        return f"Node {self.id}:\nData:{self.data}\nFinger table: {self.finger_table}"
+        return f"Node <{self.id}> | Data:{self.data}"
