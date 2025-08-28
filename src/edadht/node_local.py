@@ -1,7 +1,7 @@
 import hashlib
 from typing import Final, Dict, List
 
-KEY_SPACE: Final[int] = 3  # Inicialmente pequeno para testes
+KEY_SPACE: Final[int] = 16
 
 
 def in_interval(key, start, end) -> bool:
