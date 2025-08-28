@@ -142,15 +142,14 @@ class ChordNode:
         return data_to_transfer
 
     def stabilize(self) -> None:
-        
-        # Se o antecessor do meu sucessor não for eu mesmo...
+
         if self.next and self.next.prev != self:
             x = self.next.prev
 
             if x and in_interval(x.id, self.id, self.next.id):
                 self.next = x
                 x.prev = self
-        
+
         if self.next:
             self.next.notify(self)
 
