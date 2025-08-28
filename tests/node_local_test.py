@@ -1,4 +1,4 @@
-from edadht.node_local import ChordNode, in_interval, KEY_SPACE
+from edadht.local_node import ChordNode, in_interval, KEY_SPACE
 import unittest
 from typing import List
 

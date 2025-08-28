@@ -1,8 +1,7 @@
-from node_local import ChordNode
 import socket
 import os
 
-def limpar_tela():
+def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
 def get_local_ip():
@@ -19,8 +18,8 @@ def get_local_ip():
             s.close()
     return ip_local
 
-def menu():
-    mensagem = ["=======================",
+def print_menu():
+    entries = ["=======================",
                 " Bem-vindo ao CHORDPY!",
                 "=======================",
                 "",
@@ -29,20 +28,18 @@ def menu():
                 "3. Inserir valor",
                 "4. Buscar Valor",
                 ""]
-    for linha in mensagem:
-        print(linha)    
+    for line in entries:
+        print(line)    
    
-def main():
-    limpar_tela()
-    ip = get_local_ip()
+def menu():
+    
     while True:
-        limpar_tela()
-        menu()
-        escolha = input("Digite o número da sua escolha: ")
-        match escolha:
+        clear_screen()
+        print_menu()
+        
+        choice = input("Digite o número da sua escolha: ")
+        
+        match choice:            
             case "1":
-                print(f"Seu IP é {ip}\n")
+                print(f"Seu IP é {get_local_ip()}\n")
                 input("Pressione Enter para continuar...")
-                
-if __name__ == '__main__':
-    main()

@@ -1,7 +1,17 @@
+import json
+from pstats import SortKey
+import socket
+import threading
 import hashlib
-from typing import Final, Dict, List, Optional
+import time
 
-KEY_SPACE: Final[int] = 16
+from typing import Dict, List, Optional
+
+KEY_SPACE: int = 16
+
+
+def hash(key: str) -> int:
+    return int(hashlib.sha1(key.encode()).hexdigest(), 16) % (2**KEY_SPACE)
 
 
 def in_interval(key, start, end) -> bool:
@@ -22,21 +32,19 @@ class ChordNode:
     onde p é seu predecessor e n é o próprio nó.
     """
 
-    def __init__(self, key: str) -> None:
-        # Guarda o ID do nó no espaço de chaves da círculo
-        self.id: int = self.hash(key)
+    def __init__(self, host: str = "localhost", port: int = 8080) -> None:
+        self.host: str = host
+        self.port: int = port
+        self.address: str = f"{host}:{port}"
 
-        # O "banco de dados" responsável por guardar os valores pelos quais o nó é responsável,
-        # que são os valores de chaves entre o id de seu predecessor (inclusivo) e o seu próprio ID
+        self.id = hash(self.address)
+
+        self.server_socket = None
+        self.running: bool = True
+
         self.data: Dict[str, str] = {}
-
-        # Ponteiro para o nó anterior
         self.prev: Optional["ChordNode"] = None
-
-        # Ponteiro para o próximo nó
         self._next: Optional["ChordNode"] = None
-
-        # Guarda as referências para os nós com pulos log(n)
         self.finger_table: Dict[int, ChordNode] = {}
 
     @property
@@ -47,9 +55,6 @@ class ChordNode:
     def next(self, new_next: "ChordNode") -> None:
         self._next = new_next
         self.finger_table[0] = new_next
-
-    def hash(self, key: str) -> int:
-        return int(hashlib.sha1(key.encode()).hexdigest(), 16) % (2**KEY_SPACE)
 
     def update_finger_table(self, existingNode=None) -> None:
         for i in range(KEY_SPACE):
@@ -89,7 +94,7 @@ class ChordNode:
         return self
 
     def get(self, key: str) -> str:
-        key_hash = self.hash(key)
+        key_hash = hash(key)
         responsible_node = self.find_successor(key_hash)
 
         if responsible_node == self:
@@ -98,7 +103,7 @@ class ChordNode:
         return responsible_node.get(key)
 
     def put(self, key: str, value: str) -> None:
-        key_hash = self.hash(key)
+        key_hash = hash(key)
         responsible_node = self.find_successor(key_hash)
 
         if responsible_node == self:
@@ -132,7 +137,7 @@ class ChordNode:
             start: int = self.id
 
         for key, value in self.data.items():
-            if in_interval(self.hash(key), start, new_node_id):
+            if in_interval(hash(key), start, new_node_id):
                 data_to_transfer[key] = value
                 keys_to_remove.append(key)
 
@@ -142,7 +147,6 @@ class ChordNode:
         return data_to_transfer
 
     def stabilize(self) -> None:
-
         if self.next and self.next.prev != self:
             x = self.next.prev
 
@@ -161,17 +165,97 @@ class ChordNode:
         ):
             self.prev = potential_predecessor
 
-    def print_data(self) -> None:
-        print(self.data)
+    def create_request(self, type: str, header: str, id, **params) -> dict:
+        return {
+            "type": type,
+            "header": header,
+            "sender_id": id,
+            "params": params,
+            "timestamp": time.time(),
+        }
 
-    def print_finger_table(self) -> None:
-        print(self.finger_table)
+    def request(self, target: socket._Address, request: dict) -> Dict | None:
+        try:
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            client_socket.connect((target))
 
-    def getId(self) -> int:
-        return self.id
+            json_data: str = json.dumps(request)
 
-    def getNext(self) -> "ChordNode":
-        return self.next
+            client_socket.send(json_data.encode("utf-8"))
 
-    def __repr__(self) -> str:
+            response = client_socket.recv(1024).decode()
+
+            client_socket.close()
+
+            try:
+                return json.loads(response)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"Invalid JSON message: {e}")
+
+        except Exception as e:
+            print(f"Error when requesting {target}: {e}")
+
+    def tostr(self) -> str:
         return f"Node <{self.id}> | Data <{self.data}> | Next: <{self.next.id}>"
+
+    def server_start(self) -> None:
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(5)
+
+        self.running = True
+
+        try:
+            while self.running:
+                client_socket, addr = self.server_socket.accept()
+
+                client_thread = threading.Thread(
+                    target=self.server_handle_client,
+                    args=(client_socket, addr),
+                )
+
+                client_thread.daemon = True
+                client_thread.start()
+
+        except KeyboardInterrupt:
+            print("\nServer shutting down...")
+        finally:
+            self.server_stop()
+
+    def server_stop(self) -> None:
+        self.running = False
+        if self.server_socket:
+            self.server_socket.close()
+
+    def server_handle_client(
+        self, client_socket: socket.socket, addr: socket._RetAddress
+    ) -> None:
+        try:
+            while True:
+                data = client_socket.recv(1024).decode()
+                if not data:
+                    break
+
+                # TODO Processar a requesição recebida aqui
+                response = "Something here"
+                client_socket.send(response.encode())
+
+        except Exception as e:
+            print(f"Error handling client {addr}: {e}")
+
+        finally:
+            client_socket.close()
+            print(f"Connection with {addr} closed")
+
+    def process_request(self, data: str):
+        try:
+            request: Dict = json.loads(data)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON message: {e}")
+
+        match request["type"]:
+            case "FIND_SUCCESSOR":
+                response = {"result": self.find_successor(request["parameters"]["key"])}
+                json.dumps(response)
+                ...
