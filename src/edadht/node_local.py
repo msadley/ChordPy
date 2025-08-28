@@ -1,5 +1,5 @@
 import hashlib
-from typing import Final, Dict, List
+from typing import Final, Dict, List, Optional
 
 KEY_SPACE: Final[int] = 16
 
@@ -31,16 +31,16 @@ class ChordNode:
         self.data: Dict[str, str] = {}
 
         # Ponteiro para o nó anterior
-        self.prev: ChordNode | None = None
+        self.prev: Optional["ChordNode"] = None
 
         # Ponteiro para o próximo nó
-        self._next: ChordNode | None = None
+        self._next: Optional["ChordNode"] = None
 
         # Guarda as referências para os nós com pulos log(n)
         self.finger_table: Dict[int, ChordNode] = {}
 
     @property
-    def next(self):
+    def next(self) -> "ChordNode":
         return self.finger_table[0]
 
     @next.setter
@@ -53,7 +53,6 @@ class ChordNode:
 
     def update_finger_table(self, existingNode=None) -> None:
         for i in range(KEY_SPACE):
-            # Retorna o valor int da posição que a seta aponta no círculo
             target = (self.id + 2**i) % (2**KEY_SPACE)
 
             if not existingNode:
@@ -62,13 +61,12 @@ class ChordNode:
             self.finger_table[i] = existingNode.find_successor(target)
 
     def find_successor(self, key: int) -> "ChordNode":
-        
         if self.prev and in_interval(key, self.prev.id, self.id):
             return self
-        
+
         if not self.prev:
             return self
-        
+
         if self.next and in_interval(key, self.id, self.next.id):
             return self.next
 
@@ -132,18 +130,20 @@ class ChordNode:
             start: int = self.prev.id
         else:
             start: int = self.id
-            
+
         for key, value in self.data.items():
             if in_interval(self.hash(key), start, new_node_id):
                 data_to_transfer[key] = value
                 keys_to_remove.append(key)
-                
+
         for key in keys_to_remove:
             del self.data[key]
 
         return data_to_transfer
 
     def stabilize(self) -> None:
+        
+        # Se o antecessor do meu sucessor não for eu mesmo...
         if self.next and self.next.prev != self:
             x = self.next.prev
 
