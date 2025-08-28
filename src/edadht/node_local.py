@@ -149,7 +149,8 @@ class ChordNode:
 
             if x and in_interval(x.id, self.id, self.next.id):
                 self.next = x
-
+                x.prev = self
+        
         if self.next:
             self.next.notify(self)
 
