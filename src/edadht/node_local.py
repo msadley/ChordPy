@@ -31,10 +31,10 @@ class ChordNode:
         self.data: Dict[str, str] = {}
 
         # Ponteiro para o nó anterior
-        self.prev: ChordNode
+        self.prev: ChordNode | None = None
 
         # Ponteiro para o próximo nó
-        self._next: ChordNode
+        self._next: ChordNode | None = None
 
         # Guarda as referências para os nós com pulos log(n)
         self.finger_table: Dict[int, ChordNode] = {}
@@ -62,12 +62,21 @@ class ChordNode:
             self.finger_table[i] = existingNode.find_successor(target)
 
     def find_successor(self, key: int) -> "ChordNode":
+        
+        if self.prev and in_interval(key, self.prev.id, self.id):
+            return self
+        
+        if not self.prev:
+            return self
+        
         if self.next and in_interval(key, self.id, self.next.id):
             return self.next
 
         closest_preceding = self.closest_preceding_node(key)
 
         if closest_preceding == self:
+            if self.next:
+                return self.next.find_successor(key)
             return self
 
         return closest_preceding.find_successor(key)
@@ -75,8 +84,9 @@ class ChordNode:
     def closest_preceding_node(self, key: int) -> "ChordNode":
         for i in range(KEY_SPACE - 1, -1, -1):
             finger_node = self.finger_table.get(i)
-            if finger_node and in_interval(finger_node.id, self.id, key):
-                return finger_node
+            if finger_node and finger_node != self:
+                if in_interval(finger_node.id, self.id, key):
+                    return finger_node
 
         return self
 
@@ -118,11 +128,16 @@ class ChordNode:
         data_to_transfer: Dict[str, str] = {}
         keys_to_remove: List = []
 
+        if self.prev:
+            start: int = self.prev.id
+        else:
+            start: int = self.id
+            
         for key, value in self.data.items():
-            if in_interval(self.hash(key), self.prev.id, new_node_id):
+            if in_interval(self.hash(key), start, new_node_id):
                 data_to_transfer[key] = value
                 keys_to_remove.append(key)
-
+                
         for key in keys_to_remove:
             del self.data[key]
 
@@ -159,4 +174,4 @@ class ChordNode:
         return self.next
 
     def __repr__(self) -> str:
-        return f"Node <{self.id}> | Data <{self.data}>"
+        return f"Node <{self.id}> | Data <{self.data}> | Next: <{self.next.id}>"
