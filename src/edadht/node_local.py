@@ -1,15 +1,14 @@
 import hashlib
-from typing import Final, Dict
+from typing import Final, Dict, List
 
 KEY_SPACE: Final[int] = 3  # Inicialmente pequeno para testes
 
 
-def in_interval(key, start, end):
-    # Evita problema no range com ciclo
+def in_interval(key, start, end) -> bool:
     if start < end:
-        return start < key <= end
+        return start <= key < end
     else:
-        return key > start or key <= end
+        return key >= start or key < end
 
 
 class ChordNode:
@@ -53,8 +52,6 @@ class ChordNode:
         return int(hashlib.sha1(key.encode()).hexdigest(), 16) % (2**KEY_SPACE)
 
     def update_finger_table(self, existingNode=None) -> None:
-        """Preenche/atualiza a finger table do nó"""
-
         for i in range(KEY_SPACE):
             # Retorna o valor int da posição que a seta aponta no círculo
             target = (self.id + 2**i) % (2**KEY_SPACE)
@@ -65,28 +62,23 @@ class ChordNode:
             self.finger_table[i] = existingNode.find_successor(target)
 
     def find_successor(self, key: int) -> "ChordNode":
-        # Se o intervalo entre o predecessor e ele (não-inclusivo) conter a chave, retornar ele mesmo.
-        if in_interval(key, self.prev.id, self.id):
-            return self
-
-        # Se o intervalo entre ele e o sucessor (não-inclusivo) conter a chave, retornar o sucessor.
-        if in_interval(key, self.id, self.next.id):
+        if self.next and in_interval(key, self.id, self.next.id):
             return self.next
 
-        """
-        Aqui é onde a lógica de otimização para O(logn) entra:
-        Caminhando ao contrário, o loop pula sempre metade do arco 
-        até encontrar um nó que seja menor que a chave em questão,
-        e então delega a busca recursivamente para este nó.
-        """
-        for i in range(KEY_SPACE - 1, -1, -1):
-            preceding_node = self.finger_table[i]
-            if preceding_node.id < key:
-                break
-        else:
-            preceding_node = self
+        closest_preceding = self.closest_preceding_node(key)
 
-        return preceding_node.find_successor(key)
+        if closest_preceding == self:
+            return self
+
+        return closest_preceding.find_successor(key)
+
+    def closest_preceding_node(self, key: int) -> "ChordNode":
+        for i in range(KEY_SPACE - 1, -1, -1):
+            finger_node = self.finger_table.get(i)
+            if finger_node and in_interval(finger_node.id, self.id, key):
+                return finger_node
+
+        return self
 
     def get(self, key: str) -> str:
         key_hash = self.hash(key)
@@ -111,6 +103,7 @@ class ChordNode:
             self.next = existingNode.find_successor(self.id)
             self.prev = self.next.prev
             self.data = self.next.pass_data(self.id)
+
             self.update_finger_table(existingNode)
 
             self.next.prev.next = self
@@ -121,19 +114,39 @@ class ChordNode:
             self.next = self
             self.update_finger_table(self)
 
-    def pass_data(self, stop: int) -> Dict[str, str]:
-        data_given: Dict[str, str] = {}
+    def pass_data(self, new_node_id: int) -> Dict[str, str]:
+        data_to_transfer: Dict[str, str] = {}
+        keys_to_remove: List = []
 
-        for key in self.data.keys():
-            if self.prev.id <= self.hash(key) < stop:
-                data_given[key] = self.data.pop(key)
+        for key, value in self.data.items():
+            if in_interval(self.hash(key), self.prev.id, new_node_id):
+                data_to_transfer[key] = value
+                keys_to_remove.append(key)
 
-        return data_given
+        for key in keys_to_remove:
+            del self.data[key]
+
+        return data_to_transfer
 
     def stabilize(self) -> None:
-        self.update_finger_table(self.find_successor(self.id))
+        if self.next and self.next.prev != self:
+            x = self.next.prev
 
-    def print_data(self):
+            if x and in_interval(x.id, self.id, self.next.id):
+                self.next = x
+
+        if self.next:
+            self.next.notify(self)
+
+        self.update_finger_table()
+
+    def notify(self, potential_predecessor: "ChordNode") -> None:
+        if not self.prev or in_interval(
+            potential_predecessor.id, self.prev.id, self.id
+        ):
+            self.prev = potential_predecessor
+
+    def print_data(self) -> None:
         print(self.data)
 
     def print_finger_table(self) -> None:
@@ -143,7 +156,7 @@ class ChordNode:
         return self.id
 
     def getNext(self) -> "ChordNode":
-        return self._next
+        return self.next
 
     def __repr__(self) -> str:
-        return f"Node <{self.id}> | Data:{self.data}"
+        return f"Node <{self.id}> | Data <{self.data}>"
