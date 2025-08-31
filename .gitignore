@@ -1,2 +1,8 @@
 # Python run cache
 __pycache__/
+
+# VSCode user-specific config files
+.vscode/
+
+# User-specific env vars
+.env

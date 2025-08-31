@@ -1,17 +1,19 @@
 [project]
-name = "edadht"
-version = "0.1.0"
-description = ""
+name = "chordpy"
+version = "0.2.0"
+description = " Um sistema de armazenamento chave-valor distribuído baseado no protocolo Chord e implementado em Python."
 authors = [
-    {name = "msadley",email = "mendes.adley@gmail.com"}
+    {name = "msadley",email = "mendes.adley@gmail.com"},
+    {name = "iuryhub", email = "iury32211@outlook.com"},
+    {name = "joaoMedeir0s", email = "joao.pedro.araujo.de.medeiros@ccc.ufcg.edu.br"},
+    {name = "zPaulof7", email = "jose.paulo.freitas.da.silva.farias@ccc.ufcg.edu.br"}
 ]
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [
-]
+dependencies = []
 
 [tool.poetry]
-packages = [{include = "edadht", from = "src"}]
+packages = [{include = "chordpy", from = "src"}]
 
 
 [build-system]

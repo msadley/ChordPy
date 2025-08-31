@@ -1,6 +1,6 @@
 # ChordPy
 
-> Um sistema de armazenamento chave-valor distribuído baseado no protocolo Chord, implementado em Python para fins acadêmicos.
+> Um sistema de armazenamento chave-valor distribuído baseado no protocolo Chord e implementado em Python.
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue.svg?style=for-the-badge&logo=python)
 ![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow.svg?style=for-the-badge)
@@ -9,23 +9,22 @@
 
 ## Sobre o Projeto
 
-**ChordPy** é uma implementação simplificada de uma Tabela de Hash Distribuída (DHT) baseada no protocolo Chord. Este projeto foi desenvolvido como parte da disciplina de **Estruturas de Dados e Algoritmos**, com o principal objetivo de explorar e entender na prática os conceitos de sistemas distribuídos, redes P2P e algoritmos de roteamento descentralizado.
+**ChordPy** é uma implementação simplificada de uma Tabela de Hash Distribuída (DHT) baseada no protocolo Chord. Este projeto foi desenvolvido como parte da disciplina de **Estruturas de Dados e Algoritmos**, com o principal objetivo de explorar e entender na prática estruturas de dados mais _exóticas_.
 
-O sistema cria um anel de nós em uma rede local, onde cada nó é responsável por um segmento do espaço de chaves, permitindo o armazenamento e a recuperação de dados de forma eficiente e descentralizada.
+O sistema cria um nó local que armazena _referências_ para seus pares, criando uma rede descentralizada e eficiente graças ao sistema de _finger tables_, onde cada nó possui referências para $log(n)$ pares, separados por distâncias exponencias. Utilizando desse artifício, o protocolo Chord consegue realizar buscas em tempo $O(log\ n)$, pois, no pior caso, corta a distância até o nó procurado pela metade.
 
 ## Funcionalidades Implementadas
 
 - **Join:** Permite que um novo nó se junte ao anel Chord, recebendo as informações necessárias de um nó já existente.
 - **Leave:** Permite que um nó saia do anel de forma planejada, transferindo suas chaves e responsabilidades.
-- **Lookup (find_successor):** Algoritmo principal para encontrar o nó sucessor responsável por uma determinada chave no anel.
+- **Find Successor:** Algoritmo principal para encontrar o nó sucessor responsável por uma determinada chave no anel.
 - **Estabilização:** Processo periódico executado pelos nós para garantir que os ponteiros de sucessor e predecessor estejam corretos, mantendo a consistência do anel mesmo com a entrada e saída de nós.
 
 ## Detalhes Técnicos
 
-- **Linguagem:** Python
-- **Comunicação em Rede:** A comunicação entre os nós da rede é implementada utilizando **sockets puros**.
-- **Algoritmo de Hash:** Utilizamos a biblioteca `hashlib` com o algoritmo **SHA-1** para gerar os identificadores tanto dos nós quanto das chaves.
-- **Espaço de Identificadores:** O anel Chord opera com um espaço de chaves de $10$ bits, o que significa que os identificadores variam de $0$ a $2^{10}-1$ (ou seja, de 0 a 1023).
+- **Comunicação em Rede:** A comunicação entre os nós da rede foi implementada utilizando a biblioteca nativa **socket**.
+- **Algoritmo de Hash:** O algoritmo utilizado para gerar os identificadores dos nós e das chaves foi o **SHA-1**.
+- **Espaço de Identificadores:** O anel Chord opera com um espaço de chaves de $16$ bits, o que significa que os identificadores variam de $0$ a $2^{16}-1$ (ou seja, de 0 a 65535).
 
 ## Como Usar (Em Breve)
 
@@ -63,10 +62,6 @@ _Esta seção será detalhada assim que a implementação da interface de usuár
     python node.py --port 8001 --join 127.0.0.1:8000
     ```
 
-## Estrutura do Projeto (Em Breve)
-
-_A descrição da estrutura de arquivos e seus respectivos papéis será adicionada aqui futuramente._
-
 ## Autores
 
 Este projeto foi desenvolvido pela seguinte equipe:
@@ -78,4 +73,4 @@ Este projeto foi desenvolvido pela seguinte equipe:
 
 ## Contexto Acadêmico
 
-Este projeto foi desenvolvido como requisito para a disciplina de Estruturas de Dados e Algoritmos, ministrada pelo professor **João Arthur Brunet Monteiro**.
+Este projeto foi desenvolvido durante o estudo da disciplina de Estruturas de Dados e Algoritmos, ministrada pelo professor **João Arthur Brunet Monteiro**.

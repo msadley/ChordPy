@@ -1,6 +1,6 @@
-from cli import menu
+from chordpy.cli import menu
 
-def main():
+def main() -> None:
     menu()
   
 if __name__ == "__main__":
