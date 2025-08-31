@@ -2,34 +2,27 @@ import json
 import socket
 import threading
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Final
 from utils import hash, in_interval
-from chordpy.nodes.node import Node, KEY_SPACE
-from chordpy.nodes.remote_node import RemoteNode
+from node.interface import Node, KEY_SPACE
+from node.remote import RemoteNode
 
 
 class LocalNode(Node):
-    """
-    Classe representando os nós do anel da DHT
-
-    Cada nó possui conexão com seu sucessor imediato e com seu antecessor
-    para facilitar as operações.
-
-    Cada nó guarda a chave contida no intervalo [p, n),
-    onde p é seu predecessor e n é o próprio nó.
-    """
-
     def __init__(self, host: str = "localhost", port: int = 8080) -> None:
         self._address: Tuple[str, int] = (host, port)
         self._server_socket: Optional[socket.socket] = None
         self._running: bool = True
 
-        self._id = hash(f"{self._address[0]}:{self._address[1]}")
+        self._id: Final[int] = hash(f"{self._address[0]}:{self._address[1]}")
         self._data: Dict[str, str] = {}
         self._prev: Node = self
         self._next: Node = self
+
         self._finger_table: Dict[int, Node] = {}
         self._update_finger_table(self)
+
+        self._lock: threading.Lock = threading.Lock()
 
     @property
     def next(self) -> Node:
@@ -37,11 +30,12 @@ class LocalNode(Node):
 
     @next.setter
     def next(self, new_next: Tuple[str, int] | Node) -> None:
-        if isinstance(new_next, Node):
-            self._next = new_next
-        else:
-            self._next = RemoteNode(new_next)
-        self._finger_table[0] = self._next
+        with self._lock:
+            if isinstance(new_next, Node):
+                self._next = new_next
+            else:
+                self._next = RemoteNode(new_next)
+            self._finger_table[0] = self._next
 
     @property
     def prev(self) -> Node:
@@ -49,10 +43,11 @@ class LocalNode(Node):
 
     @prev.setter
     def prev(self, new_prev: Tuple[str, int] | Node) -> None:
-        if isinstance(new_prev, Node):
-            self._prev = new_prev
-        else:
-            self._prev = RemoteNode(new_prev)
+        with self._lock:
+            if isinstance(new_prev, Node):
+                self._prev = new_prev
+            else:
+                self._prev = RemoteNode(new_prev)
 
     @property
     def address(self) -> Tuple[str, int]:
@@ -73,7 +68,8 @@ class LocalNode(Node):
             if not existingNode:
                 existingNode = self
 
-            self.finger_table[i] = existingNode.find_successor(target)
+            with self._lock:
+                self.finger_table[i] = existingNode.find_successor(target)
 
     def find_successor(self, key: int) -> Node:
         if self.prev and in_interval(key, self.prev.id, self.id):
@@ -118,19 +114,21 @@ class LocalNode(Node):
         responsible_node = self.find_successor(key_hash)
 
         if responsible_node == self:
-            self.data[key] = value
+            with self._lock:
+                self.data[key] = value
         else:
             responsible_node.put(key, value)
 
     def join(self, existing_node: RemoteNode) -> None:
-        self.next = existing_node.find_successor(self.id)
-        self.prev = self.next.prev
-        self.data = self.next.pass_data(self)
+        with self._lock:
+            self.next = existing_node.find_successor(self.id)
+            self.prev = self.next.prev
+            self.data = self.next.pass_data(self)
 
-        self._update_finger_table(existing_node)
+            self._update_finger_table(existing_node)
 
-        self.next.prev.next = self
-        self.next.prev = self
+            self.next.prev.next = self
+            self.next.prev = self
 
     def pass_data(self, receiver: Node) -> Dict[str, str]:
         data_to_transfer: Dict[str, str] = {}
@@ -141,34 +139,35 @@ class LocalNode(Node):
         else:
             start: int = self.id
 
-        for key, value in self.data.items():
-            if in_interval(hash(key), start, receiver.id):
-                data_to_transfer[key] = value
-                keys_to_remove.append(key)
+        with self._lock:
+            for key, value in self.data.items():
+                if in_interval(hash(key), start, receiver.id):
+                    data_to_transfer[key] = value
+                    keys_to_remove.append(key)
 
-        for key in keys_to_remove:
-            del self.data[key]
+            for key in keys_to_remove:
+                del self.data[key]
 
         return data_to_transfer
 
     def _stabilize(self) -> None:
-        if self.next != self and self.next.prev != self:
-            x = self.next.prev
+        with self._lock:
+            if self.next != self and self.next.prev != self:
+                x = self.next.prev
 
-            if x and in_interval(x.id, self.id, self.next.id):
-                self.next = x
-                x.prev = self
+                if x and in_interval(x.id, self.id, self.next.id):
+                    self.next = x
+                    x.prev = self
 
-        if self.next != self:
-            self.next.notify(self)
+            if self.next != self:
+                self.next.notify(self)
 
         self._update_finger_table()
 
-    def notify(self, potential_predecessor: Node) -> None:
-        if not self.prev or in_interval(
-            potential_predecessor.id, self.prev.id, self.id
-        ):
-            self.prev = potential_predecessor
+    def notify(self, potential_prev: Node) -> None:
+        with self._lock:
+            if not self.prev or in_interval(potential_prev.id, self.prev.id, self.id):
+                self.prev = potential_prev
 
     def server_start(self) -> None:
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -256,10 +255,10 @@ class LocalNode(Node):
                 return json.dumps(response)
 
             case "NOTIFY":
-                self.notify(request["parameters"]["potential_predecessor"])
+                self.notify(request["parameters"]["potential_prev"])
 
             case "JOIN":
-                self.join(request["parameters"]["potential_predecessor"])
+                self.join(request["parameters"]["potential_prev"])
 
             case "PASS_DATA":
                 response = self.pass_data(request["parameters"]["receiver"])

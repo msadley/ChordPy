@@ -3,7 +3,7 @@ import json
 
 from typing import Tuple, Dict, Any
 from message import message
-from chordpy.nodes.node import Node
+from node.interface import Node
 
 
 class RemoteNode(Node):
@@ -80,11 +80,11 @@ class RemoteNode(Node):
         )["result"]
         return RemoteNode(successor_address)
 
-    def notify(self, potential_predecessor: Node) -> None:
-        self._request("NOTIFY", self.address, notifier=potential_predecessor.address)
+    def notify(self, potential_prev: Node) -> None:
+        self._request("NOTIFY", self.address, notifier=potential_prev.address)
 
     def join(self, existing_node: "RemoteNode") -> None:
-        self._request("JOIN", self.address, potential_predecessor=existing_node.address)
+        self._request("JOIN", self.address, potential_prev=existing_node.address)
 
     def pass_data(self, receiver: Node) -> Dict[str, str]:
         return self._request("PASS_DATA", self.address, receiver=receiver.address)

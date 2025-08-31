@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Tuple, Final
-from chordpy.nodes.remote_node import RemoteNode
+from node.remote import RemoteNode
 
 KEY_SPACE: Final[int] = 16
 
@@ -57,5 +57,5 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def notify(self, potential_predecessor: "Node") -> None:
+    def notify(self, potential_prev: "Node") -> None:
         pass
