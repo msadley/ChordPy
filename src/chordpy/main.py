@@ -1,17 +1,16 @@
 from gui import ChordGUI
-from chord import Chord
+from controller import ChordController
 import threading
 import sys
 
 
 def main():
-    chord = Chord(int(sys.argv[1]))
-    gui = ChordGUI(chord)
-
-    server_thread = threading.Thread(target=chord.start_server)
+    port = int(sys.argv[1])
+    controller = ChordController(port)
+    server_thread = threading.Thread(target=controller.start_server)
     server_thread.daemon = True
     server_thread.start()
-
+    gui = ChordGUI(controller)
     gui.start()
 
 
