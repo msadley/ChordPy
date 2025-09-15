@@ -7,8 +7,10 @@ from typing import Tuple
 
 
 class Chord:
-    def __init__(self) -> None:
-        self._node = LocalNode()
+    def __init__(self, port: int = 8008) -> None:
+        self._node = LocalNode(port=port)
+
+    def start_server(self) -> None:
         self._node.server_start()
 
     def get_ip(self) -> str:

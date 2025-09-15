@@ -9,7 +9,7 @@ from node.interface import Node
 class RemoteNode(Node):
     def __init__(self, address: Tuple[str, int]) -> None:
         self._id: int = hash(f"{address[0]}:{address[1]}")
-        self._address: Tuple[str, int]
+        self._address: Tuple[str, int] = address
 
     @property
     def next(self) -> "RemoteNode":

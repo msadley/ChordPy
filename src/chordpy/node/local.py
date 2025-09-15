@@ -4,12 +4,15 @@ import threading
 
 from typing import Dict, List, Optional, Tuple, Final
 from utils import hash, in_interval
-from node.interface import Node, KEY_SPACE
+from node.interface import Node
 from node.remote import RemoteNode
 
 
+KEY_SPACE: Final[int] = 16
+
+
 class LocalNode(Node):
-    def __init__(self, host: str = "localhost", port: int = 8080) -> None:
+    def __init__(self, host: str = "localhost", port: int = 8008) -> None:
         self._address: Tuple[str, int] = (host, port)
         self._server_socket: Optional[socket.socket] = None
         self._running: bool = True
@@ -20,9 +23,8 @@ class LocalNode(Node):
         self._next: Node = self
 
         self._finger_table: Dict[int, Node] = {}
-        self._update_finger_table(self)
-
         self._lock: threading.Lock = threading.Lock()
+        self._update_finger_table(self)
 
     @property
     def next(self) -> Node:

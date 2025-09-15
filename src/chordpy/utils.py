@@ -1,8 +1,9 @@
 import hashlib
 import socket
 
-from chordpy.node.interface import KEY_SPACE
-from typing import Tuple
+from typing import Tuple, Final
+
+KEY_SPACE: Final[int] = 16
 
 
 def hash(key: str) -> int:

@@ -1,8 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Final
-from node.remote import RemoteNode
-
-KEY_SPACE: Final[int] = 16
+from typing import Dict, Tuple
 
 
 class Node(ABC):
@@ -49,7 +46,7 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def join(self, existing_node: RemoteNode) -> None:
+    def join(self, existing_node: "RemoteNode") -> None:  # type: ignore  # noqa: F821
         pass
 
     @abstractmethod
