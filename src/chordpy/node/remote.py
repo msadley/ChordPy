@@ -68,16 +68,15 @@ class RemoteNode(Node):
         except Exception as e:
             raise RuntimeError(f"Error when requesting {address}: {e}")
 
-    def get(self, key: str) -> str:
-        return self._request("LOOKUP", self.address, key=key)["result"]
-
     def put(self, key: str, value: str) -> None:
         self._request("PUT", self.address, key=key, value=value)
 
+    def get(self, key: str) -> str:
+        return self._request("LOOKUP", self.address, key=key)["value"] 
+
     def find_successor(self, key: int) -> "RemoteNode":
         successor_address: Tuple[str, int] = self._request(
-            "FIND_SUCCESSOR", self.address, key=key
-        )["result"]
+            "FIND_SUCCESSOR", self.address, key=key)["successor"]
         return RemoteNode(successor_address)
 
     def notify(self, potential_prev: Node) -> None:

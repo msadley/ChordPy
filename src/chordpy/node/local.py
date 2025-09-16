@@ -12,7 +12,7 @@ KEY_SPACE: Final[int] = 16
 
 
 class LocalNode(Node):
-    def __init__(self, host: str = "localhost", port: int = 8008) -> None:
+    def __init__(self, host: str = "0.0.0.0", port: int = 8008) -> None:
         self._address: Tuple[str, int] = (host, port)
         self._server_socket: Optional[socket.socket] = None
         self._running: bool = True
@@ -220,22 +220,16 @@ class LocalNode(Node):
             client_socket.close()
             print(f"Connection with {addr} closed")
 
-    def _process_request(self, data: str) -> str:
-        try:
-            request: Dict = json.loads(data)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"Invalid JSON message: {e}")
-
-        if request["type"] != "REQUEST":
-            raise RuntimeError(f"Expected request but got '{request['type']}'")
-
-        match request["header"]:
+    def _process_request(self, data: Dict) -> str:  
+        request: Dict = data                       
+        match request["type"]:
             case "GET_NEXT":
                 response = {"next": self.next.address}
                 return json.dumps(response)
 
             case "SET_NEXT":
                 self.next = RemoteNode(request["parameters"]["new_next"])
+                return json.dumps({"status": "success"})
 
             case "GET_PREV":
                 response = {"prev": self.prev.address}
@@ -243,27 +237,31 @@ class LocalNode(Node):
 
             case "SET_PREV":
                 self.prev = RemoteNode(request["parameters"]["new_prev"])
+                return json.dumps({"status": "success"})
 
             case "LOOKUP":
                 response = {"value": self.get(request["parameters"]["key"])}
+                return json.dumps(response)
 
             case "PUT":
                 self.put(request["parameters"]["key"], request["parameters"]["value"])
+                return json.dumps({"status": "success"})
 
             case "FIND_SUCCESSOR":
-                response = {
-                    "successor": self.find_successor(request["parameters"]["key"])
-                }
+                successor = self.find_successor(request["parameters"]["key"])
+                response = {"successor": successor.address}
                 return json.dumps(response)
 
             case "NOTIFY":
-                self.notify(request["parameters"]["potential_prev"])
+                self.notify(RemoteNode(request["parameters"]["potential_prev"]))
+                return json.dumps({"status": "success"})
 
             case "JOIN":
-                self.join(request["parameters"]["potential_prev"])
+                self.join(RemoteNode(request["parameters"]["potential_prev"]))
+                return json.dumps({"status": "success"})
 
             case "PASS_DATA":
-                response = self.pass_data(request["parameters"]["receiver"])
+                response = self.pass_data(RemoteNode(request["parameters"]["receiver"]))
                 return json.dumps(response)
 
-        return ""
+        return json.dumps({"error": "Unknown request type"})
