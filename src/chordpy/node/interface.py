@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Optional, List
 
 
 class Node(ABC):
@@ -38,7 +38,7 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def get(self, key: str) -> str:
+    def get(self, key: str, history: Optional[List[str]]) -> str:
         pass
 
     @abstractmethod

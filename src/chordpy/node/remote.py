@@ -1,7 +1,7 @@
 import socket
 import json
 
-from typing import Tuple, Dict, Any
+from typing import Tuple, Dict, Any, Optional
 from message import message
 from node.interface import Node
 
@@ -71,12 +71,19 @@ class RemoteNode(Node):
     def put(self, key: str, value: str) -> None:
         self._request("PUT", self.address, key=key, value=value)
 
-    def get(self, key: str) -> str:
-        return self._request("LOOKUP", self.address, key=key)["value"] 
+    def get(self, key: str, history: Optional[list]) -> str:
+        self_log: str = f"GET assigned to {self.address[0]}:{self.address[1]}"
+        if history is not None:
+            history.append(self_log)
+        else:
+            history = [self_log]
+
+        return self._request("LOOKUP", self.address, key=key, history=history)["value"]
 
     def find_successor(self, key: int) -> "RemoteNode":
         successor_address: Tuple[str, int] = self._request(
-            "FIND_SUCCESSOR", self.address, key=key)["successor"]
+            "FIND_SUCCESSOR", self.address, key=key
+        )["successor"]
         return RemoteNode(successor_address)
 
     def notify(self, potential_prev: Node) -> None:

@@ -1,4 +1,5 @@
 import json
+from optparse import Option
 import socket
 import threading
 
@@ -19,12 +20,11 @@ class LocalNode(Node):
 
         self._id: Final[int] = hash(f"{self._address[0]}:{self._address[1]}")
         self._data: Dict[str, str] = {}
-        self._prev: Node = self
-        self._next: Node = self
+        self._prev: Optional[Node]
+        self._next: Optional[Node]
 
         self._finger_table: Dict[int, Node] = {}
         self._lock: threading.Lock = threading.Lock()
-        self._update_finger_table(self)
 
     @property
     def next(self) -> Node:
@@ -41,7 +41,7 @@ class LocalNode(Node):
 
     @property
     def prev(self) -> Node:
-        return self._prev
+        return self._prev  # type: ignore
 
     @prev.setter
     def prev(self, new_prev: Tuple[str, int] | Node) -> None:
@@ -62,6 +62,20 @@ class LocalNode(Node):
     @property
     def finger_table(self) -> Dict[int, Node]:
         return self._finger_table
+
+    def get_address(self) -> str:
+        s = None
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 1))
+            ip_local = f"{s.getsockname()[0]}:{self.address[1]}"
+        except Exception as e:
+            print(f"Não foi possível obter o IP: {e}")
+            ip_local = socket.gethostbyname(socket.gethostname())
+        finally:
+            if s:
+                s.close()
+        return ip_local
 
     def _update_finger_table(self, existingNode=None) -> None:
         for i in range(KEY_SPACE):
@@ -102,14 +116,14 @@ class LocalNode(Node):
 
         return self
 
-    def get(self, key: str) -> str:
+    def get(self, key: str, history: Optional[List[str]] = None) -> str:
         key_hash = hash(key)
         responsible_node = self.find_successor(key_hash)
 
         if responsible_node == self:
             return self.data.get(key, "Key not found")
 
-        return responsible_node.get(key)
+        return responsible_node.get(key, history)
 
     def put(self, key: str, value: str) -> None:
         key_hash = hash(key)
@@ -121,16 +135,21 @@ class LocalNode(Node):
         else:
             responsible_node.put(key, value)
 
-    def join(self, existing_node: RemoteNode) -> None:
-        with self._lock:
-            self.next = existing_node.find_successor(self.id)
-            self.prev = self.next.prev
-            self.data = self.next.pass_data(self)
+    def join(self, existing_node: Optional[RemoteNode] = None) -> None:
+        if existing_node is not None:
+            with self._lock:
+                self.next = existing_node.find_successor(self.id)
+                self.prev = self.next.prev
+                self.data = self.next.pass_data(self)
 
-            self._update_finger_table(existing_node)
+                self._update_finger_table(existing_node)
 
-            self.next.prev.next = self
-            self.next.prev = self
+                self.next.prev.next = self
+                self.next.prev = self
+        else:
+            self.prev = self
+            self.next = self
+            self._update_finger_table(self)
 
     def pass_data(self, receiver: Node) -> Dict[str, str]:
         data_to_transfer: Dict[str, str] = {}
@@ -218,10 +237,9 @@ class LocalNode(Node):
 
         finally:
             client_socket.close()
-            print(f"Connection with {addr} closed")
 
-    def _process_request(self, data: Dict) -> str:  
-        request: Dict = data                       
+    def _process_request(self, data: Dict) -> str:
+        request: Dict = data
         match request["type"]:
             case "GET_NEXT":
                 response = {"next": self.next.address}
@@ -240,7 +258,12 @@ class LocalNode(Node):
                 return json.dumps({"status": "success"})
 
             case "LOOKUP":
-                response = {"value": self.get(request["parameters"]["key"])}
+                response = {
+                    "value": self.get(
+                        request["parameters"]["key"],
+                        history=request["parameters"]["history"],
+                    )
+                }
                 return json.dumps(response)
 
             case "PUT":

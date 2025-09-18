@@ -4,7 +4,6 @@ from typing import Tuple, Dict, Any, Optional
 
 from node.local import LocalNode
 from node.remote import RemoteNode
-from utils import addr_to_str, ip
 
 
 class ChordController:
@@ -17,8 +16,8 @@ class ChordController:
     def start_server(self) -> None:
         self._node.server_start()
 
-    def get_ip(self) -> str:
-        return ip()
+    def get_address(self) -> str:
+        return self._node.get_address()
 
     def stop(self) -> None:
         try:
@@ -28,15 +27,12 @@ class ChordController:
             raise RuntimeError(f"Error caught when stopping program:\n{e}")
 
     def validate_address(self, address: str) -> Tuple[str, int]:
-        pattern = r'^(\d{1,3}(\.\d{1,3}){3}):(\d{1,5})$'
+        pattern = r"^(\d{1,3}(\.\d{1,3}){3}):(\d{1,5})$"
         if not re.match(pattern, address):
             raise ValueError("Endereço inválido. Use o formato IP:PORTA")
 
         ip, port_str = address.split(":")
         port = int(port_str)
-
-        if not (0 < port < 65536):
-            raise ValueError("Porta deve estar entre 1 e 65535")
 
         return ip, port
 
@@ -79,12 +75,17 @@ class ChordController:
                 "ip": node.address[0],
                 "port": node.address[1],
                 "address": f"{node.address[0]}:{node.address[1]}",
-                "prev": f"{node.prev.address[0]}:{node.prev.address[1]}" if node.prev else None,
-                "next": f"{node.next.address[0]}:{node.next.address[1]}" if node.next else None,
+                "prev": f"{node.prev.address[0]}:{node.prev.address[1]}"
+                if node.prev
+                else None,
+                "next": f"{node.next.address[0]}:{node.next.address[1]}"
+                if node.next
+                else None,
                 "finger_table": {
-                    i: f"{n.address[0]}:{n.address[1]}" for i, n in node.finger_table.items()
+                    i: f"{n.address[0]}:{n.address[1]}"
+                    for i, n in node.finger_table.items()
                 },
-                "data": node._data.copy()
+                "data": node._data.copy(),
             }
             return {"success": True, "node_info": info}
         except Exception as e:
