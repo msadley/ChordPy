@@ -1,21 +1,31 @@
-from chord import Chord
-from typing import Tuple, Dict, Any
+import sys
 import re
+from typing import Tuple, Dict, Any, Optional
+
+from node.local import LocalNode
+from node.remote import RemoteNode
+from utils import addr_to_str, ip
 
 
 class ChordController:
-    def __init__(self, port: int):
-        self._chord = Chord(port)
-        self._port = port
+    def __init__(self, port: Optional[int] = 8008) -> None:
+        if port is not None:
+            self._node = LocalNode(port=port)
+        else:
+            self._node = LocalNode()
 
     def start_server(self) -> None:
-        self._chord.start_server()
+        self._node.server_start()
 
     def get_ip(self) -> str:
-        return self._chord.get_ip()
+        return ip()
 
     def stop(self) -> None:
-        self._chord.stop()
+        try:
+            self._node.server_stop()
+            sys.exit(0)
+        except Exception as e:
+            raise RuntimeError(f"Error caught when stopping program:\n{e}")
 
     def validate_address(self, address: str) -> Tuple[str, int]:
         pattern = r'^(\d{1,3}(\.\d{1,3}){3}):(\d{1,5})$'
@@ -33,7 +43,7 @@ class ChordController:
     def join_network(self, address: str) -> Dict[str, Any]:
         try:
             ip, port = self.validate_address(address)
-            self._chord.join_network((ip, port))
+            self._node.join(RemoteNode((ip, port)))
             return {"success": True, "message": f"Conectado à rede {ip}:{port}"}
         except Exception as e:
             return {"success": False, "message": str(e)}
@@ -43,7 +53,7 @@ class ChordController:
             return {"success": False, "message": "Chave e valor não podem ser vazios"}
 
         try:
-            self._chord.put(key, value)
+            self._node.put(key, value)
             return {"success": True, "message": f"Chave '{key}' armazenada com sucesso"}
         except Exception as e:
             return {"success": False, "message": str(e)}
@@ -53,7 +63,7 @@ class ChordController:
             return {"success": False, "message": "A chave não pode ser vazia"}
 
         try:
-            value = self._chord.get(key)
+            value = self._node.get(key)
             if value and value != "Key not found":
                 return {"success": True, "key": key, "value": value}
             else:
@@ -63,7 +73,7 @@ class ChordController:
 
     def get_node_inf(self) -> Dict[str, Any]:
         try:
-            node = self._chord._node
+            node = self._node
             info = {
                 "id": node.id,
                 "ip": node.address[0],

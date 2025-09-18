@@ -6,7 +6,7 @@ import sys
 
 
 def main():
-    port = int(sys.argv[1])
+    port = int(sys.argv[1]) if len(sys.argv) > 1 else None
     controller = ChordController(port)
     server_thread = threading.Thread(target=controller.start_server)
     server_thread.daemon = True

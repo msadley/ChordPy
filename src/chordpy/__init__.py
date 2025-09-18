@@ -1,4 +1,4 @@
-from chord import Chord
+from .controller import ChordController
 from cli import menu
 
 
