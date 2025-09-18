@@ -1,7 +1,7 @@
 import os
 
 from typing import Tuple
-from chordpy.chord import Chord
+from controller import ChordController
 
 
 def clear_screen() -> None:
@@ -25,7 +25,7 @@ def print_menu() -> None:
         print(line)
 
 
-def menu(chord: Chord) -> None:
+def menu(chord: ChordController) -> None:
     while True:
         clear_screen()
         print_menu()
@@ -40,9 +40,8 @@ def menu(chord: Chord) -> None:
             case "2":
                 data = input("""
 Insira o endereço e porta do par já iniciado na rede
-utilizando o formato <endereço-ip>:<porta>\n>""").split(":")
-                address: Tuple[str, int] = data[0], int(data[1])
-                chord.join_network(address)
+utilizando o formato <endereço-ip>:<porta>\n>""")
+                chord.join_network(data)
 
             case "3":
                 key, value = input("""
