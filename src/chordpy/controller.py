@@ -36,6 +36,9 @@ class ChordController:
 
         return ip, port
 
+    def start_network(self) -> None:
+        self._node.join()
+
     def join_network(self, address: str) -> Dict[str, Any]:
         try:
             ip, port = self.validate_address(address)

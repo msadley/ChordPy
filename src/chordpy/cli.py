@@ -32,13 +32,14 @@ def menu(chord: ChordController) -> None:
 
         match choice:
             case "1":
+                chord.start_network()
                 menu_network(chord)
                 input("\nPressione Enter para voltar...")
             case "2":
                 address = input(">")
                 join = chord.join_network(address)
                 print(join["message"])
-                
+
             case "3":
                 print("Encerrando...")
                 chord.stop()
