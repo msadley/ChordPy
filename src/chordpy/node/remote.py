@@ -48,6 +48,7 @@ class RemoteNode(Node):
         return self._id
 
     def _request(self, type: str, address: Tuple[str, int], **params) -> Dict[str, Any]:
+        print(type)
         try:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client_socket.connect((address))

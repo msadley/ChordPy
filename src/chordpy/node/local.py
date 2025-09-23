@@ -42,7 +42,9 @@ class LocalNode(Node):
 
     @property
     def prev(self) -> Node:
-        return self._prev  # type: ignore
+        if self._prev is None:
+            raise ValueError("Previous node is not set.")
+        return self._prev
 
     @prev.setter
     def prev(self, new_prev: Tuple[str, int] | Node) -> None:
@@ -67,6 +69,11 @@ class LocalNode(Node):
     @property
     def data(self) -> Dict[str, str]:
         return self._data
+    
+    @data.setter
+    def data(self, new_data: Dict[str, str]) -> None:
+        with self._lock:
+            self._data.update(new_data)
 
     def get_address(self) -> str:
         s = None
@@ -93,7 +100,6 @@ class LocalNode(Node):
                 self.finger_table[i] = existingNode.find_successor(target)
 
     def find_successor(self, key: int) -> Node:
-        print("find_sucessor_local")
         if self.prev and in_interval(key, self.prev.id, self.id):
             return self
 
@@ -143,17 +149,19 @@ class LocalNode(Node):
 
     def join(self, existing_node: Node | None = None) -> None:
         if existing_node is not None:
+            print("Joining the network...")
             self._next = existing_node.find_successor(self.id)
-            self.prev = self.next.prev
-            self.data = self.next.pass_data(self)
+            print(f"opa {self._next.prev}")
+            self._prev = self._next.prev
+            self.data = self._next.pass_data(self)
 
             self._update_finger_table(existing_node)
 
-            self.next.prev.next = self
-            self.next.prev = self
+            self._next.prev.next = self
+            self._next.prev = self
         else:
             self.prev = self
-            self.next = self
+            self._next = self
             self._update_finger_table(self)
 
     def pass_data(self, receiver: Node) -> Dict[str, str]:
