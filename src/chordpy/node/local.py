@@ -13,9 +13,8 @@ KEY_SPACE: Final[int] = 16
 
 class LocalNode(Node):
     def __init__(self, host: str = "0.0.0.0", port: int = 8008) -> None:
-        ip_address = self.get_address()
-
         self._host: Tuple[str, int] = (host, port)
+        ip_address = self.get_address()
         self._address: Tuple[str, int] = (ip_address, port)
         self._server_socket: Optional[socket.socket] = None
         self._running: bool = True
@@ -64,13 +63,17 @@ class LocalNode(Node):
     @property
     def finger_table(self) -> Dict[int, Node]:
         return self._finger_table
+    
+    @property
+    def data(self) -> Dict[str, str]:
+        return self._data
 
     def get_address(self) -> str:
         s = None
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 1))
-            ip_local = f"{s.getsockname()[0]}:{self.address[1]}"
+            ip_local = f"{s.getsockname()[0]}:{self._host[1]}"
         except Exception as e:
             print(f"Não foi possível obter o IP: {e}")
             ip_local = socket.gethostbyname(socket.gethostname())
