@@ -25,7 +25,7 @@ def print_menu() -> None:
 
 def menu(chord: ChordController) -> None:
     while True:
-        clear_screen()
+        # clear_screen()
         print_menu()
 
         choice = input("Digite o número da sua escolha: ")
@@ -37,8 +37,8 @@ def menu(chord: ChordController) -> None:
                 input("\nPressione Enter para voltar...")
             case "2":
                 address = input(">")
-                join = chord.join_network(address)
-                print(join["message"])
+                chord.join_network(address)
+                menu_network(chord)
 
             case "3":
                 print("Encerrando...")
@@ -47,7 +47,7 @@ def menu(chord: ChordController) -> None:
 
 def menu_network(chord: ChordController) -> None:
     while True:
-        clear_screen()
+        # clear_screen()
         print_menu_network()
 
         choice = input("Digite o número da sua escolha: ")

@@ -13,7 +13,10 @@ KEY_SPACE: Final[int] = 16
 
 class LocalNode(Node):
     def __init__(self, host: str = "0.0.0.0", port: int = 8008) -> None:
-        self._address: Tuple[str, int] = (host, port)
+        ip_address = self.get_address()
+
+        self._host: Tuple[str, int] = (host, port)
+        self._address: Tuple[str, int] = (ip_address, port)
         self._server_socket: Optional[socket.socket] = None
         self._running: bool = True
 
@@ -87,6 +90,7 @@ class LocalNode(Node):
                 self.finger_table[i] = existingNode.find_successor(target)
 
     def find_successor(self, key: int) -> Node:
+        print("find_sucessor_local")
         if self.prev and in_interval(key, self.prev.id, self.id):
             return self
 
@@ -134,19 +138,16 @@ class LocalNode(Node):
         else:
             responsible_node.put(key, value)
 
-    def join(self, existing_node: Optional[RemoteNode] = None) -> None:
+    def join(self, existing_node: Node | None = None) -> None:
         if existing_node is not None:
-            with self._lock:
-                self.next = existing_node.find_successor(self.id)
-                print("Opa")
-                self.prev = self.next.prev
-                self.data = self.next.pass_data(self)
-                print("Opa")
-                self._update_finger_table(existing_node)
-                print("Opa")
-                
-                self.next.prev.next = self
-                self.next.prev = self
+            self._next = existing_node.find_successor(self.id)
+            self.prev = self.next.prev
+            self.data = self.next.pass_data(self)
+
+            self._update_finger_table(existing_node)
+
+            self.next.prev.next = self
+            self.next.prev = self
         else:
             self.prev = self
             self.next = self
@@ -194,7 +195,7 @@ class LocalNode(Node):
     def server_start(self) -> None:
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._server_socket.bind(self.address)
+        self._server_socket.bind(self._host)
         self._server_socket.listen(5)
 
         self._running = True
@@ -272,6 +273,7 @@ class LocalNode(Node):
                 return json.dumps({"status": "success"})
 
             case "FIND_SUCCESSOR":
+                print("request passada")
                 successor = self.find_successor(request["parameters"]["key"])
                 response = {"successor": successor.address}
                 return json.dumps(response)

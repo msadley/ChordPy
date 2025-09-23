@@ -80,7 +80,7 @@ class RemoteNode(Node):
 
         return self._request("LOOKUP", self.address, key=key, history=history)["value"]
 
-    def find_successor(self, key: int) -> "RemoteNode":
+    def find_successor(self, key: int):
         successor_address: Tuple[str, int] = self._request(
             "FIND_SUCCESSOR", self.address, key=key
         )["successor"]
