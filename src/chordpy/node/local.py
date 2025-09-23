@@ -1,5 +1,4 @@
 import json
-from optparse import Option
 import socket
 import threading
 
@@ -139,11 +138,13 @@ class LocalNode(Node):
         if existing_node is not None:
             with self._lock:
                 self.next = existing_node.find_successor(self.id)
+                print("Opa")
                 self.prev = self.next.prev
                 self.data = self.next.pass_data(self)
-
+                print("Opa")
                 self._update_finger_table(existing_node)
-
+                print("Opa")
+                
                 self.next.prev.next = self
                 self.next.prev = self
         else:
