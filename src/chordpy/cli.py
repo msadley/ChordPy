@@ -71,6 +71,35 @@ Insira o valor da chave a ser buscada:\n>""")
             case "4":
                 return
 
+            case "5":
+                neighbors = chord.getNeighbors()
+                if neighbors["success"]:
+                    print(
+                        f"Vizinhos:\nAnterior: {neighbors['prev']}\nPróximo: {neighbors['next']}\n"
+                    )
+
+            case "6":
+                local_dict = chord.getLocalDict()
+                if local_dict["success"]:
+                    print("Dicionário Local:")
+                    for k, v in local_dict["data"].items():
+                        print(f"{k}: {v}")
+                    print()
+                else:
+                    print(f"Erro: {local_dict['message']}\n")
+
+            case "7":
+                finger_table = chord.getFingerTable()
+                if finger_table["success"]:
+                    print("Finger Table:")
+                    for i, addr in finger_table["finger_table"].items():
+                        print(f"{i}: {addr}")
+                    print()
+                else:
+                    print(f"Erro: {finger_table['message']}\n")
+            case "8":
+                print(f"ID do Nó: {chord.getId()}\n")
+
 
 def print_menu_network() -> None:
     entries = [
@@ -82,6 +111,10 @@ def print_menu_network() -> None:
         "2. Inserir Valor",
         "3. Buscar Valor",
         "4. Sair da Rede",
+        "5. Obter Vizinhos",
+        "6. Obter Dicionário Local",
+        "7. Obter Finger Table",
+        "8. Obter ID do Nó",
         "",
     ]
     for line in entries:
