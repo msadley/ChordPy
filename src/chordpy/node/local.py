@@ -21,7 +21,7 @@ class LocalNode(Node):
 
         self._id: Final[int] = hash(f"{self._address[0]}:{self._address[1]}")
         self._data: Dict[str, str] = {}
-        self._prev: Optional[Node]
+        self._prev: Optional[Node] = None
         self._next: Optional[Node]
 
         self._finger_table: Dict[int, Node] = {}
@@ -29,7 +29,9 @@ class LocalNode(Node):
 
     @property
     def next(self) -> Node:
-        return self._finger_table[0]
+        if self._next is None:
+            raise ValueError("Next node is not set.")
+        return self._next
 
     @next.setter
     def next(self, new_next: Tuple[str, int] | Node) -> None:
