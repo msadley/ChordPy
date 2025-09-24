@@ -34,7 +34,7 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def find_successor(self, key: int) -> "Node":
+    def find_successor(self, key: int, iterations: int) -> "Node":
         pass
 
     @abstractmethod
