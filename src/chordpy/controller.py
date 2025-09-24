@@ -13,6 +13,42 @@ class ChordController:
         else:
             self._node = LocalNode()
 
+    def getNeighbors(self) -> Dict[str, Any]:
+        try:
+            prev = (
+                f"{self._node.prev.address[0]}:{self._node.prev.address[1]}"
+                if self._node.prev
+                else None
+            )
+            next = (
+                f"{self._node.next.address[0]}:{self._node.next.address[1]}"
+                if self._node.next
+                else None
+            )
+            return {"success": True, "prev": prev, "next": next}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    def getLocalDict(self) -> Dict[str, Any]:
+        try:
+            data = self._node._data.copy()
+            return {"success": True, "data": data}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    def getFingerTable(self) -> dict[str, Any]:
+        try:
+            finger_table = {
+                i: f"{n.address[0]}:{n.address[1]}"
+                for i, n in self._node.finger_table.items()
+            }
+            return {"success": True, "finger_table": finger_table}
+        except Exception as e:
+            return {"success": False, "message": str(e)}
+
+    def getId(self) -> int:
+        return self._node.id
+
     def start_server(self) -> None:
         self._node.server_start()
 
