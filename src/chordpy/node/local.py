@@ -105,10 +105,10 @@ class LocalNode(Node):
         if iterations > KEY_SPACE:
             raise RecursionError("Successor not found")
 
-        if self.prev and in_interval(key, self.prev.id, self.id):
+        if self.prev and in_interval(key, self.prev.id, self.id, include_start=False, include_end=True):
             return self
 
-        if self.next and in_interval(key, self.id, self.next.id):
+        if self.next and in_interval(key, self.id, self.next.id, include_start=False, include_end=True):
             return self.next
 
         closest_preceding = self._closest_preceding_node(key)
@@ -123,7 +123,7 @@ class LocalNode(Node):
             finger_node = self.finger_table.get(i)
 
             if finger_node and finger_node != self:
-                if in_interval(finger_node.id, self.id, key):
+                if in_interval(finger_node.id, self.id, key, include_start=False, include_end=False):
                     return finger_node
 
         return self
