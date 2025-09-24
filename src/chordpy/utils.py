@@ -9,13 +9,18 @@ def hash(key: str) -> int:
     return int(hashlib.sha1(key.encode()).hexdigest(), 16) % (2**KEY_SPACE)
 
 
-def in_interval(key: int, start: int, end: int) -> bool:
+def in_interval(key: int, start: int, end: int, include_start: bool = False, include_end: bool = True) -> bool:
     if start == end:
-        return key != start
+        return key == start if include_start or include_end else False
+    
     if start < end:
-        return start < key <= end
+        start_check = key >= start if include_start else key > start
+        end_check = key <= end if include_end else key < end
+        return start_check and end_check
     else:
-        return key > start or key <= end
+        start_check = key >= start if include_start else key > start
+        end_check = key <= end if include_end else key < end
+        return start_check or end_check
 
 
 def addr_to_str(address: Tuple[str, int]) -> str:
