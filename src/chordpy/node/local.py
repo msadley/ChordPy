@@ -1,4 +1,5 @@
 import json
+import random
 import socket
 import threading
 
@@ -66,11 +67,11 @@ class LocalNode(Node):
     @property
     def finger_table(self) -> Dict[int, Node]:
         return self._finger_table
-    
+
     @property
     def data(self) -> Dict[str, str]:
         return self._data
-    
+
     @data.setter
     def data(self, new_data: Dict[str, str]) -> None:
         with self._lock:
@@ -99,11 +100,12 @@ class LocalNode(Node):
             with self._lock:
                 self.finger_table[i] = existingNode.find_successor(target)
 
-    def find_successor(self, key: int) -> Node:
-        if self.prev and in_interval(key, self.prev.id, self.id):
-            return self
+    def find_successor(self, key: int, iterations: int = 0) -> Node:
+        print("Finding successor for key:", key)
+        if iterations > KEY_SPACE:
+            raise RecursionError("Successor not found")
 
-        if not self.prev:
+        if self.prev and in_interval(key, self.prev.id, self.id):
             return self
 
         if self.next and in_interval(key, self.id, self.next.id):
@@ -112,11 +114,9 @@ class LocalNode(Node):
         closest_preceding = self._closest_preceding_node(key)
 
         if closest_preceding == self:
-            if self.next:
-                return self.next.find_successor(key)
             return self
 
-        return closest_preceding.find_successor(key)
+        return closest_preceding.find_successor(key, iterations + 1)
 
     def _closest_preceding_node(self, key: int) -> Node:
         for i in range(KEY_SPACE - 1, -1, -1):
@@ -129,40 +129,50 @@ class LocalNode(Node):
         return self
 
     def get(self, key: str, history: Optional[List[str]] = None) -> str:
+        if history and f"{self.address[0]}:{self.address[1]}" in history:
+            return "Key not found"
+
         key_hash = hash(key)
         responsible_node = self.find_successor(key_hash)
 
         if responsible_node == self:
             return self.data.get(key, "Key not found")
 
+        if history is None:
+            history = []
+        history.append(f"{self.address[0]}:{self.address[1]}")
+
         return responsible_node.get(key, history)
 
     def put(self, key: str, value: str) -> None:
-        key_hash = hash(key)
-        responsible_node = self.find_successor(key_hash)
+        key_hash: int = hash(key)
+        responsible_node: Node = self.find_successor(key_hash)
 
         if responsible_node == self:
+            print("Storing locally")
             with self._lock:
                 self.data[key] = value
         else:
+            print(f"Storing in node {responsible_node.address}")
             responsible_node.put(key, value)
 
-    def join(self, existing_node: Node | None = None) -> None:
-        if existing_node is not None:
-            print("Joining the network...")
-            self._next = existing_node.find_successor(self.id)
-            print(f"opa {self._next.prev}")
-            self._prev = self._next.prev
-            self.data = self._next.pass_data(self)
-
-            self._update_finger_table(existing_node)
-
-            self._next.prev.next = self
-            self._next.prev = self
-        else:
+    def join(self, existing_node: Optional[RemoteNode] = None) -> None:
+        if existing_node is None:
             self.prev = self
-            self._next = self
+            self.next = self
             self._update_finger_table(self)
+        else:
+            self.next = existing_node.find_successor(self.id)
+            self.prev = self.next.prev
+            self.data = self.next.pass_data(self)
+            self._update_finger_table(existing_node)
+            self.next.prev.next = self
+            self.next.prev = self
+
+    def fix_fingers(self) -> None:
+        i = random.randrange(KEY_SPACE)
+        target = (self.id + 2**i) % (2**KEY_SPACE)
+        self.finger_table[i] = self.find_successor(target)
 
     def pass_data(self, receiver: Node) -> Dict[str, str]:
         data_to_transfer: Dict[str, str] = {}
@@ -186,17 +196,18 @@ class LocalNode(Node):
 
     def _stabilize(self) -> None:
         with self._lock:
-            if self.next != self and self.next.prev != self:
-                x = self.next.prev
+            if self.next is self:
+                self._update_finger_table()
+                return
 
-                if x and in_interval(x.id, self.id, self.next.id):
-                    self.next = x
-                    x.prev = self
+            x = self.next.prev
 
-            if self.next != self:
-                self.next.notify(self)
+            if x and in_interval(x.id, self.id, self.next.id):
+                self.next = x
 
-        self._update_finger_table()
+            self.next.notify(self)
+
+        self.fix_fingers()
 
     def notify(self, potential_prev: Node) -> None:
         with self._lock:
@@ -235,70 +246,72 @@ class LocalNode(Node):
 
     def _server_handle_client(self, client_socket: socket.socket, addr: str) -> None:
         try:
-            while True:
+            while self._running:
                 data = client_socket.recv(1024).decode()
 
                 if not data:
                     break
 
+                print(f"Received data from {addr}: {data}")
                 response = self._process_request(json.loads(data))
+                print(f"Sending response to {addr}: {response}")
 
-                client_socket.send(response.encode())
+                client_socket.send(json.dumps(response).encode())
 
         except Exception as e:
             print(f"Error handling client {addr}: {e}")
 
         finally:
+            print(f"Closing client socket {addr}")
             client_socket.close()
 
-    def _process_request(self, data: Dict) -> str:
-        request: Dict = data
+    def _process_request(self, request: Dict) -> Dict:
         match request["type"]:
             case "GET_NEXT":
-                response = {"next": self.next.address}
-                return json.dumps(response)
+                return {"next": self.next.address}
 
             case "SET_NEXT":
                 self.next = RemoteNode(request["parameters"]["new_next"])
-                return json.dumps({"status": "success"})
+                return {"status": "success"}
 
             case "GET_PREV":
-                response = {"prev": self.prev.address}
-                return json.dumps(response)
+                return {"prev": self.prev.address}
 
             case "SET_PREV":
                 self.prev = RemoteNode(request["parameters"]["new_prev"])
-                return json.dumps({"status": "success"})
+                return {"status": "success"}
 
             case "LOOKUP":
-                response = {
+                return {
                     "value": self.get(
                         request["parameters"]["key"],
-                        history=request["parameters"]["history"],
+                        history=request["parameters"].get("history", []),
                     )
                 }
-                return json.dumps(response)
 
             case "PUT":
                 self.put(request["parameters"]["key"], request["parameters"]["value"])
-                return json.dumps({"status": "success"})
+                return {"status": "success"}
 
             case "FIND_SUCCESSOR":
-                print("request passada")
-                successor = self.find_successor(request["parameters"]["key"])
-                response = {"successor": successor.address}
-                return json.dumps(response)
+                successor = self.find_successor(
+                    request["parameters"]["key"],
+                    request["parameters"].get("iterations", 0),
+                )
+                return {"successor": successor.address}
 
             case "NOTIFY":
                 self.notify(RemoteNode(request["parameters"]["potential_prev"]))
-                return json.dumps({"status": "success"})
+                return {"status": "success"}
 
             case "JOIN":
                 self.join(RemoteNode(request["parameters"]["potential_prev"]))
-                return json.dumps({"status": "success"})
+                return {"status": "success"}
 
             case "PASS_DATA":
-                response = self.pass_data(RemoteNode(request["parameters"]["receiver"]))
-                return json.dumps(response)
+                return self.pass_data(RemoteNode(request["parameters"]["receiver"]))
 
-        return json.dumps({"error": "Unknown request type"})
+            case "GET_ID":
+                return {"id": self.id}
+
+        return {"error": "Unknown request type"}
