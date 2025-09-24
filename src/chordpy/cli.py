@@ -1,6 +1,5 @@
 import os
 
-from typing import Tuple
 from controller import ChordController
 
 
