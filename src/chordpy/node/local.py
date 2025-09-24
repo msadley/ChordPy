@@ -12,10 +12,9 @@ KEY_SPACE: Final[int] = 16
 
 
 class LocalNode(Node):
-    def __init__(self, host: str = "0.0.0.0", port: int = 8008) -> None:
-        self._host: Tuple[str, int] = (host, port)
-        ip_address = self.get_address()
-        self._address: Tuple[str, int] = (ip_address, port)
+    def __init__(self, host: str = "0.0.0.0",port: int = 8008) -> None:
+        self._address: Tuple[str, int] = self.get_ip(), port
+        self._host: Tuple[str, int] = host, port
         self._server_socket: Optional[socket.socket] = None
         self._running: bool = True
 
@@ -77,19 +76,18 @@ class LocalNode(Node):
         with self._lock:
             self._data.update(new_data)
 
-    def get_address(self) -> str:
+    def get_ip(self) -> str:
         s = None
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            s.connect(("8.8.8.8", 1))
-            ip_local = f"{s.getsockname()[0]}:{self._host[1]}"
-        except Exception as e:
-            print(f"Não foi possível obter o IP: {e}")
-            ip_local = socket.gethostbyname(socket.gethostname())
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+        except Exception:
+            ip = "127.0.0.1"
         finally:
             if s:
                 s.close()
-        return ip_local
+        return ip
 
     def _update_finger_table(self, existingNode=None) -> None:
         for i in range(KEY_SPACE):
