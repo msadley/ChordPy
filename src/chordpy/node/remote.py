@@ -8,7 +8,6 @@ from node.interface import Node
 
 class RemoteNode(Node):
     def __init__(self, address: Tuple[str, int]) -> None:
-        self._id: int = hash(f"{address[0]}:{address[1]}")
         self._address: Tuple[str, int] = address
 
     @property
@@ -45,21 +44,23 @@ class RemoteNode(Node):
 
     @property
     def id(self) -> int:
-        return self._id
+        return self._request("GET_ID", self.address)["id"]
 
-    def _request(self, type: str, address: Tuple[str, int], **params) -> Dict[str, Any]:
-        print(type)
+    def _request(
+        self, type: str, address: Tuple[str, int] | list, **params
+    ) -> Dict[str, Any]:
         try:
+            if isinstance(address, list):
+                address = tuple(address)
+
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((address))
+            client_socket.connect(address)
 
             data: str = message(type, **params).to_json()
 
             client_socket.send(data.encode())
 
             response = client_socket.recv(1024).decode()
-
-            client_socket.close()
 
             try:
                 return json.loads(response)
@@ -81,17 +82,17 @@ class RemoteNode(Node):
 
         return self._request("LOOKUP", self.address, key=key, history=history)["value"]
 
-    def find_successor(self, key: int):
-        successor_address: Tuple[str, int] = self._request(
-            "FIND_SUCCESSOR", self.address, key=key
+    def find_successor(self, key: int, iterations: int = 0) -> "RemoteNode":
+        successor_address: list = self._request(
+            "FIND_SUCCESSOR", self.address, key=key, iterations=iterations
         )["successor"]
-        return RemoteNode(successor_address)
+        return RemoteNode(tuple(successor_address))
 
     def notify(self, potential_prev: Node) -> None:
-        self._request("NOTIFY", self.address, notifier=potential_prev.address)
+        self._request("NOTIFY", self.address, potential_prev=potential_prev.address)
 
     def join(self, existing_node: "RemoteNode") -> None:
-        self._request("JOIN", self.address, potential_prev=existing_node.address)
+        self._request("JOIN", self.address, existing_node=existing_node.address)
 
     def pass_data(self, receiver: Node) -> Dict[str, str]:
         return self._request("PASS_DATA", self.address, receiver=receiver.address)

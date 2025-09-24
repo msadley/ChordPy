@@ -53,7 +53,8 @@ class ChordController:
         self._node.server_start()
 
     def get_address(self) -> str:
-        return self._node.get_address()
+        ip, port = self._node.address
+        return f"{ip}:{port}"
 
     def stop(self) -> None:
         try:
