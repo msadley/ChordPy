@@ -11,10 +11,12 @@ def hash(key: str) -> int:
 
 
 def in_interval(key: int, start: int, end: int) -> bool:
+    if start == end:
+        return key != start
     if start < end:
-        return start <= key < end
+        return start < key <= end
     else:
-        return key >= start or key < end
+        return key > start or key <= end
 
 
 def addr_to_str(address: Tuple[str, int]) -> str:
