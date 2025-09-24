@@ -1,5 +1,4 @@
 import hashlib
-import socket
 
 from typing import Tuple, Final
 
