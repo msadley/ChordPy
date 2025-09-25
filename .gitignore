@@ -6,3 +6,7 @@ __pycache__/
 
 # User-specific env vars
 .env
+
+# Log files
+*.log
+logs/
