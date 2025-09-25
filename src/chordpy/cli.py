@@ -25,7 +25,6 @@ def print_menu() -> None:
 
 def menu(chord: ChordController) -> None:
     while True:
-        clear_screen()
         print_menu()
 
         choice = input("Digite o número da sua escolha: ")
@@ -37,14 +36,21 @@ def menu(chord: ChordController) -> None:
             
             case "2":
                 address = input(">")
-                chord.join_network(address)
-                menu_network(chord)
+                result = chord.join_network(address)
+                if result["success"]:
+                    menu_network(chord)
+                else:
+                    print(f"\nErro: {result['message']}")
+                    input("Pressione Enter para continuar...")
+                    clear_screen()
             
             case "3":
                 print("Encerrando...")
                 chord.stop()
             
             case _:
+                print("Opção inválida")
+                input("Pressione Enter para continuar...")
                 clear_screen()
 
 
@@ -79,15 +85,21 @@ utilizando o formato <chave> = <valor>:\n>""")
                         input("Pressione Enter para continuar...")
                         clear_screen()
                         continue
-                    if chord.put(key, value):
+                    
+                    result = chord.put(key, value)
+                    if result["success"]:
                         input("Valor adicionado\nPressione Enter para continuar...")
                     else:
-                        input("Valor não adicionado\nPressione Enter para continuar...")
+                        if "não reachable" in result["message"] or "timed out" in result["message"]:
+                            print(f"ERRO DE CONEXÃO: {result['message']}")
+                        else:
+                            print(f"Falha ao adicionar o valor: {result['message']}")
+                        input("Pressione Enter para continuar...")
                     
                 except Exception as e:
                     print(f"Erro ao processar entrada: {e}")
                     input("Pressione Enter para continuar...")
-                
+    
                 clear_screen()
 
             case "3":
@@ -99,8 +111,8 @@ utilizando o formato <chave> = <valor>:\n>""")
                         print("Histórico de busca:")
                         for entry in result["history"]:
                             print(f" - {entry}")
-                else:
-                    print("\nChave não encontrada.")
+                    else:
+                        print("\nChave não encontrada.")
                     
                 input("\nPressione Enter para continuar...")
                 clear_screen()
@@ -145,6 +157,7 @@ utilizando o formato <chave> = <valor>:\n>""")
                     print(f"Erro: {finger_table['message']}\n")
                     input("Pressione Enter para continuar...")
                     clear_screen()
+                    
             case "8":
                 print(f"ID do Nó: {chord.getId()}\n")
                 input("Pressione Enter para continuar...")
@@ -152,6 +165,12 @@ utilizando o formato <chave> = <valor>:\n>""")
 
             case "9":
                 log()
+                
+            # Adicionado caso default para opções inválidas
+            case _:
+                print("Opção inválida")
+                input("Pressione Enter para continuar...")
+                clear_screen()
 
 
 def print_menu_network() -> None:
@@ -177,6 +196,8 @@ def print_menu_network() -> None:
 
 def log() -> None:
     try:
+        clear_screen()
+        
         with open(current_log_file, "r") as log_file:
             log_content = log_file.read()
             print("\n=== LOG ===\n")
@@ -186,3 +207,5 @@ def log() -> None:
             clear_screen()
     except Exception as e:
         print(f"Erro ao ler o arquivo de log: {e}")
+        input("Pressione Enter para continuar...")
+        clear_screen()
