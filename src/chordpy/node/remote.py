@@ -4,11 +4,13 @@ import json
 from typing import Tuple, Dict, Any, Optional
 from message import message
 from node.interface import Node
+from logger import logger
 
 
 class RemoteNode(Node):
     def __init__(self, address: Tuple[str, int]) -> None:
         self._address: Tuple[str, int] = address
+        logger.info(f"RemoteNode initialized at {address[0]}:{address[1]}")
 
     @property
     def next(self) -> "RemoteNode":
@@ -44,7 +46,8 @@ class RemoteNode(Node):
 
     @property
     def id(self) -> int:
-        return self._request("GET_ID", self.address)["id"]
+        node_id = self._request("GET_ID", self.address)["id"]
+        return node_id
 
     def _request(
         self, type: str, address: Tuple[str, int] | list, **params
@@ -57,42 +60,86 @@ class RemoteNode(Node):
             client_socket.connect(address)
 
             data: str = message(type, **params).to_json()
+            logger.debug(f"Sending {type} request to {address}")
 
             client_socket.send(data.encode())
 
             response = client_socket.recv(1024).decode()
 
             try:
-                return json.loads(response)
+                result = json.loads(response)
+                return result
             except json.JSONDecodeError as e:
+                logger.error(f"Invalid JSON response: {e}")
                 raise ValueError(f"Invalid JSON message: {e}")
 
+        except ConnectionRefusedError:
+            logger.error(f"Connection refused by {address}")
+            raise RuntimeError(f"Node at {address} is not reachable")
+        except socket.timeout:
+            logger.error(f"Connection to {address} timed out")
+            raise RuntimeError(f"Connection to {address} timed out")
         except Exception as e:
+            logger.error(f"Error when requesting {type} from {address}: {e}")
             raise RuntimeError(f"Error when requesting {address}: {e}")
 
     def put(self, key: str, value: str) -> None:
-        self._request("PUT", self.address, key=key, value=value)
+        logger.info(f"Storing key '{key}' at remote node {self.address}")
+        try:
+            self._request("PUT", self.address, key=key, value=value)
+        except Exception as e:
+            logger.error(f"Failed to store key '{key}': {e}")
+            raise
 
-    def get(self, key: str, history: Optional[list]) -> str:
+    def get(self, key: str, history: Optional[list]) -> Tuple[str, Tuple[str, int]]:
+        logger.info(f"Retrieving key '{key}' from remote node {self.address}")
         self_log: str = f"GET assigned to {self.address[0]}:{self.address[1]}"
         if history is not None:
             history.append(self_log)
         else:
             history = [self_log]
 
-        return self._request("LOOKUP", self.address, key=key, history=history)["value"]
+        try:
+            result = self._request("LOOKUP", self.address, key=key, history=history)
+            value = result["value"]
+            node_address = result.get("node_address")  # Pode ser None
+            return (value, node_address)
+        except Exception as e:
+            logger.error(f"Failed to retrieve key '{key}': {e}")
+            raise
 
     def find_successor(self, key: int, iterations: int = 0) -> "RemoteNode":
-        successor_address: list = self._request(
-            "FIND_SUCCESSOR", self.address, key=key, iterations=iterations
-        )["successor"]
-        return RemoteNode(tuple(successor_address))
+        logger.info(f"Finding successor for key {key} at node {self.address}")
+        try:
+            successor_address: list = self._request(
+                "FIND_SUCCESSOR", self.address, key=key, iterations=iterations
+            )["successor"]
+            return RemoteNode(tuple(successor_address))
+        except Exception as e:
+            logger.error(f"Failed to find successor: {e}")
+            raise
 
     def notify(self, potential_prev: Node) -> None:
-        self._request("NOTIFY", self.address, potential_prev=potential_prev.address)
+        logger.info(f"Notifying node {self.address}")
+        try:
+            self._request("NOTIFY", self.address, potential_prev=potential_prev.address)
+        except Exception as e:
+            logger.error(f"Failed to notify node: {e}")
+            raise
 
     def join(self, existing_node: "RemoteNode") -> None:
-        self._request("JOIN", self.address, existing_node=existing_node.address)
+        logger.info(f"Joining network through {existing_node.address}")
+        try:
+            self._request("JOIN", self.address, existing_node=existing_node.address)
+        except Exception as e:
+            logger.error(f"Failed to join network: {e}")
+            raise
 
     def pass_data(self, receiver: Node) -> Dict[str, str]:
-        return self._request("PASS_DATA", self.address, receiver=receiver.address)
+        logger.info(f"Requesting data transfer to {receiver.address}")
+        try:
+            result = self._request("PASS_DATA", self.address, receiver=receiver.address)
+            return result
+        except Exception as e:
+            logger.error(f"Failed to transfer data: {e}")
+            raise
