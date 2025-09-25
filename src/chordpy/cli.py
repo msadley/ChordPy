@@ -25,6 +25,7 @@ def print_menu() -> None:
 
 def menu(chord: ChordController) -> None:
     while True:
+        clear_screen()
         print_menu()
 
         choice = input("Digite o número da sua escolha: ")
@@ -94,6 +95,10 @@ utilizando o formato <chave> = <valor>:\n>""")
                 result = chord.get(key)
                 if result["success"]:
                     print(f"{key} = {result['value']}\n(Armazenado no nó: {result['node']})")
+                    if "history" in result:
+                        print("Histórico de busca:")
+                        for entry in result["history"]:
+                            print(f" - {entry}")
                 else:
                     print("\nChave não encontrada.")
                     
