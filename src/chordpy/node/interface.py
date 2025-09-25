@@ -1,5 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Tuple, Optional, List
+from typing import Dict, Optional, List, Tuple
+
+from address import Address
 
 
 class Node(ABC):
@@ -10,7 +12,7 @@ class Node(ABC):
 
     @next.setter
     @abstractmethod
-    def next(self, new_next: "Node | Tuple[str, int]") -> None:
+    def next(self, new_next: "Node | Address") -> None:
         pass
 
     @property
@@ -20,7 +22,7 @@ class Node(ABC):
 
     @prev.setter
     @abstractmethod
-    def prev(self, new_prev: "Node | Tuple[str, int]") -> None:
+    def prev(self, new_prev: "Node | Address") -> None:
         pass
 
     @property
@@ -30,7 +32,7 @@ class Node(ABC):
 
     @property
     @abstractmethod
-    def address(self) -> Tuple[str, int]:
+    def address(self) -> Address:
         pass
 
     @abstractmethod
@@ -38,7 +40,7 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def get(self, key: str, history: Optional[List[str]]) -> str:
+    def get(self, key: str, history: Optional[List[str]]) -> Tuple[str, Optional[Address], List[str]]:
         pass
 
     @abstractmethod

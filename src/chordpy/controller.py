@@ -1,7 +1,8 @@
 import sys
 import re
-from typing import Tuple, Dict, Any, Optional
+from typing import Dict, Any, Optional
 
+from address import Address
 from node.local import LocalNode
 from node.remote import RemoteNode
 from logger import logger
@@ -13,20 +14,14 @@ class ChordController:
             self._node = LocalNode(port=port)
         else:
             self._node = LocalNode()
-        logger.info(f"Controller initialized with node ID: {self._node.id} at {self._node.address}")
+        logger.info(
+            f"Controller initialized with node ID: {self._node.id} at {self._node.address}"
+        )
 
     def getNeighbors(self) -> Dict[str, Any]:
         try:
-            prev = (
-                f"{self._node.prev.address[0]}:{self._node.prev.address[1]}"
-                if self._node.prev
-                else None
-            )
-            next = (
-                f"{self._node.next.address[0]}:{self._node.next.address[1]}"
-                if self._node.next
-                else None
-            )
+            prev = str(self._node.prev.address) if self._node.prev else None
+            next = str(self._node.next.address) if self._node.next else None
             logger.info(f"Retrieved neighbors: prev={prev}, next={next}")
             return {"success": True, "prev": prev, "next": next}
         except Exception as e:
@@ -45,8 +40,7 @@ class ChordController:
     def getFingerTable(self) -> dict[str, Any]:
         try:
             finger_table = {
-                i: f"{n.address[0]}:{n.address[1]}"
-                for i, n in self._node.finger_table.items()
+                i: str(n.address) for i, n in self._node.finger_table.items()
             }
             logger.info(f"Retrieved finger table with {len(finger_table)} entries")
             return {"success": True, "finger_table": finger_table}
@@ -64,8 +58,7 @@ class ChordController:
         logger.info(f"Server started at {self._node.address}")
 
     def get_address(self) -> str:
-        ip, port = self._node.address
-        address = f"{ip}:{port}"
+        address = str(self._node.address)
         logger.info(f"Retrieved node address: {address}")
         return address
 
@@ -79,7 +72,7 @@ class ChordController:
             logger.error(f"Error when stopping server: {e}")
             raise RuntimeError(f"Error caught when stopping program:\n{e}")
 
-    def validate_address(self, address: str) -> Tuple[str, int]:
+    def validate_address(self, address: str) -> Address:
         pattern = r"^(\d{1,3}(\.\d{1,3}){3}):(\d{1,5})$"
         if not re.match(pattern, address):
             logger.error(f"Invalid address format: {address}")
@@ -88,7 +81,7 @@ class ChordController:
         ip, port_str = address.split(":")
         port = int(port_str)
         logger.info(f"Address validated: {ip}:{port}")
-        return ip, port
+        return Address(ip, port)
 
     def start_network(self) -> None:
         logger.info("Starting new Chord network...")
@@ -98,10 +91,10 @@ class ChordController:
     def join_network(self, address: str) -> Dict[str, Any]:
         try:
             logger.info(f"Attempting to join network at {address}")
-            ip, port = self.validate_address(address)
-            self._node.join(RemoteNode((ip, port)))
-            logger.info(f"Successfully joined network at {ip}:{port}")
-            return {"success": True, "message": f"Conectado à rede {ip}:{port}"}
+            validated_address = self.validate_address(address)
+            self._node.join(RemoteNode(validated_address))
+            logger.info(f"Successfully joined network at {validated_address}")
+            return {"success": True, "message": f"Conectado à rede {validated_address}"}
         except Exception as e:
             logger.error(f"Failed to join network at {address}: {e}")
             return {"success": False, "message": str(e)}
@@ -127,14 +120,14 @@ class ChordController:
 
         try:
             logger.info(f"Getting value for key: '{key}'")
-            value, node_address = self._node.get(key)
+            value, node_address, history = self._node.get(key)
             if value and value != "Key not found":
                 logger.info(f"Key '{key}' found with value '{value}' at {node_address}")
-                node_str = f"{node_address[0]}:{node_address[1]}" if node_address else "Unknown"
-                return {"success": True, "key": key, "value": value, "node": node_str}
+                node_str = str(node_address) if node_address else "Unknown"
+                return {"success": True, "key": key, "value": value, "node": node_str, "history": history}
             else:
                 logger.warning(f"Key '{key}' not found")
-                return {"success": False, "message": f"Chave '{key}' não encontrada"}
+                return {"success": False, "message": f"Chave '{key}' não encontrada", "history": history}
         except Exception as e:
             logger.error(f"Error retrieving key '{key}': {e}")
             return {"success": False, "message": str(e)}
@@ -145,18 +138,13 @@ class ChordController:
             node = self._node
             info = {
                 "id": node.id,
-                "ip": node.address[0],
-                "port": node.address[1],
-                "address": f"{node.address[0]}:{node.address[1]}",
-                "prev": f"{node.prev.address[0]}:{node.prev.address[1]}"
-                if node.prev
-                else None,
-                "next": f"{node.next.address[0]}:{node.next.address[1]}"
-                if node.next
-                else None,
+                "ip": node.address.ip,
+                "port": node.address.port,
+                "address": str(node.address),
+                "prev": str(node.prev.address) if node.prev else None,
+                "next": str(node.next.address) if node.next else None,
                 "finger_table": {
-                    i: f"{n.address[0]}:{n.address[1]}"
-                    for i, n in node.finger_table.items()
+                    i: str(n.address) for i, n in node.finger_table.items()
                 },
                 "data": node._data.copy(),
             }

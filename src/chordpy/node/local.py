@@ -3,7 +3,8 @@ import random
 import socket
 import threading
 
-from typing import Dict, List, Optional, Tuple, Final
+from typing import Dict, List, Optional, Final, Tuple
+from address import Address
 from utils import hash, in_interval
 from node.interface import Node
 from node.remote import RemoteNode
@@ -14,20 +15,20 @@ KEY_SPACE: Final[int] = 16
 
 
 class LocalNode(Node):
-    def __init__(self, host: str = "0.0.0.0",port: int = 8008) -> None:
-        self._address: Tuple[str, int] = self.get_ip(), port
-        self._host: Tuple[str, int] = host, port
+    def __init__(self, host: str = "0.0.0.0", port: int = 8008) -> None:
+        self._address: Address = Address(self.get_ip(), port)
+        self._host: Address = Address(host, port)
         self._server_socket: Optional[socket.socket] = None
         self._running: bool = True
 
-        self._id: Final[int] = hash(f"{self._address[0]}:{self._address[1]}")
+        self._id: Final[int] = hash(str(self._address))
         self._data: Dict[str, str] = {}
         self._prev: Optional[Node] = None
         self._next: Optional[Node]
 
         self._finger_table: Dict[int, Node] = {}
         self._lock: threading.Lock = threading.Lock()
-        
+
         logger.info(f"LocalNode initialized with ID: {self._id} at {self._address}")
 
     @property
@@ -37,7 +38,7 @@ class LocalNode(Node):
         return self._next
 
     @next.setter
-    def next(self, new_next: Tuple[str, int] | Node) -> None:
+    def next(self, new_next: Address | Node) -> None:
         with self._lock:
             if isinstance(new_next, Node):
                 self._next = new_next
@@ -52,7 +53,7 @@ class LocalNode(Node):
         return self._prev
 
     @prev.setter
-    def prev(self, new_prev: Tuple[str, int] | Node) -> None:
+    def prev(self, new_prev: Address | Node) -> None:
         with self._lock:
             if isinstance(new_prev, Node):
                 self._prev = new_prev
@@ -60,7 +61,7 @@ class LocalNode(Node):
                 self._prev = RemoteNode(new_prev)
 
     @property
-    def address(self) -> Tuple[str, int]:
+    def address(self) -> Address:
         return self._address
 
     @property
@@ -107,15 +108,19 @@ class LocalNode(Node):
 
     def find_successor(self, key: int, iterations: int = 0) -> Node:
         logger.debug(f"Finding successor for key: {key}")
-        
+
         if iterations > KEY_SPACE:
             logger.error(f"Recursion error: Successor not found for key {key}")
             raise RecursionError("Successor not found")
 
-        if self.prev and in_interval(key, self.prev.id, self.id, include_start=False, include_end=True):
+        if self.prev and in_interval(
+            key, self.prev.id, self.id, include_start=False, include_end=True
+        ):
             return self
 
-        if self.next and in_interval(key, self.id, self.next.id, include_start=False, include_end=True):
+        if self.next and in_interval(
+            key, self.id, self.next.id, include_start=False, include_end=True
+        ):
             return self.next
 
         closest_preceding = self._closest_preceding_node(key)
@@ -130,16 +135,23 @@ class LocalNode(Node):
             finger_node = self.finger_table.get(i)
 
             if finger_node and finger_node != self:
-                if in_interval(finger_node.id, self.id, key, include_start=False, include_end=False):
+                if in_interval(
+                    finger_node.id, self.id, key, include_start=False, include_end=False
+                ):
                     return finger_node
 
         return self
 
-    def get(self, key: str, history: Optional[List[str]] = None) -> Tuple[str, Tuple[str, int]]:
+    def get(
+        self, key: str, history: Optional[List[str]] = None
+    ) -> Tuple[str, Optional[Address], List[str]]:
         logger.info(f"GET request - Key: {key}")
-        if history and f"{self.address[0]}:{self.address[1]}" in history:
+        if history and str(self.address) in history:
             logger.warning(f"Circular lookup detected for key {key}")
-            return ("Key not found", None)
+            return ("Key not found", None, history)
+
+        if history is None:
+            history = []
 
         key_hash = hash(key)
         responsible_node = self.find_successor(key_hash)
@@ -148,14 +160,12 @@ class LocalNode(Node):
             value = self.data.get(key, "Key not found")
             if value == "Key not found":
                 logger.info(f"Key '{key}' not found locally")
-                return (value, None)
+                history.append(f"Key not found locally at {self.address}")
+                return (value, None, history)
             else:
                 logger.info(f"Key '{key}' found locally with value '{value}'")
-                return (value, self.address)
-
-        if history is None:
-            history = []
-        history.append(f"{self.address[0]}:{self.address[1]}")
+                history.append(f"Key found locally at {self.address}")
+                return (value, self.address, history)
 
         logger.info(f"Forwarding GET request to {responsible_node.address}")
         return responsible_node.get(key, history)
@@ -237,14 +247,14 @@ class LocalNode(Node):
                 self.prev = potential_prev
 
     def server_start(self) -> None:
-        logger.info(f"Starting server at {self._host[0]}:{self._host[1]}")
+        logger.info(f"Starting server at {self._host}")
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._server_socket.bind(self._host)
+        self._server_socket.bind(self._host.as_tuple)
         self._server_socket.listen(5)
 
         self._running = True
-        logger.info(f"Server listening at {self._host[0]}:{self._host[1]}")
+        logger.info(f"Server listening at {self._host}")
 
         try:
             while self._running:
@@ -292,28 +302,33 @@ class LocalNode(Node):
 
     def _process_request(self, request: Dict) -> Dict:
         logger.info(f"Processing request: {request.get('type')}")
-        
+
         match request["type"]:
             case "GET_NEXT":
-                return {"next": self.next.address}
+                return {"next": self.next.address.as_tuple}
 
             case "SET_NEXT":
-                self.next = RemoteNode(request["parameters"]["new_next"])
+                new_next_addr = request["parameters"]["new_next"]
+                self.next = Address(new_next_addr[0], new_next_addr[1])
                 return {"status": "success"}
 
             case "GET_PREV":
-                return {"prev": self.prev.address}
+                return {"prev": self.prev.address.as_tuple}
 
             case "SET_PREV":
-                self.prev = RemoteNode(request["parameters"]["new_prev"])
+                new_prev_addr = request["parameters"]["new_prev"]
+                self.prev = Address(new_prev_addr[0], new_prev_addr[1])
                 return {"status": "success"}
 
             case "LOOKUP":
                 key = request["parameters"]["key"]
                 history = request["parameters"].get("history", [])
                 logger.info(f"LOOKUP request - Key: {key}")
-                value, node_address = self.get(key, history=history)
-                return {"value": value, "node_address": node_address}
+                value, node_address, _ = self.get(key, history=history)
+                return {
+                    "value": value,
+                    "node_address": node_address.as_tuple if node_address else None,
+                }
 
             case "PUT":
                 key = request["parameters"]["key"]
@@ -327,18 +342,27 @@ class LocalNode(Node):
                     request["parameters"]["key"],
                     request["parameters"].get("iterations", 0),
                 )
-                return {"successor": successor.address}
+                return {"successor": successor.address.as_tuple}
 
             case "NOTIFY":
-                self.notify(RemoteNode(request["parameters"]["potential_prev"]))
+                potential_prev_addr = request["parameters"]["potential_prev"]
+                self.notify(
+                    RemoteNode(Address(potential_prev_addr[0], potential_prev_addr[1]))
+                )
                 return {"status": "success"}
 
             case "JOIN":
-                self.join(RemoteNode(request["parameters"]["potential_prev"]))
+                potential_prev_addr = request["parameters"]["potential_prev"]
+                self.join(
+                    RemoteNode(Address(potential_prev_addr[0], potential_prev_addr[1]))
+                )
                 return {"status": "success"}
 
             case "PASS_DATA":
-                return self.pass_data(RemoteNode(request["parameters"]["receiver"]))
+                receiver_addr = request["parameters"]["receiver"]
+                return self.pass_data(
+                    RemoteNode(Address(receiver_addr[0], receiver_addr[1]))
+                )
 
             case "GET_ID":
                 return {"id": self.id}

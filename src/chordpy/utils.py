@@ -1,6 +1,5 @@
 import hashlib
-
-from typing import Tuple, Final
+from typing import Final
 
 KEY_SPACE: Final[int] = 16
 
@@ -21,7 +20,3 @@ def in_interval(key: int, start: int, end: int, include_start: bool = False, inc
         start_check = key >= start if include_start else key > start
         end_check = key <= end if include_end else key < end
         return start_check or end_check
-
-
-def addr_to_str(address: Tuple[str, int]) -> str:
-    return f"{address[0]}:{address[1]}"
