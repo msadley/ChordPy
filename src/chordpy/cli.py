@@ -1,6 +1,7 @@
 import os
 
 from controller import ChordController
+from logger import current_log_file
 
 
 def clear_screen() -> None:
@@ -24,7 +25,6 @@ def print_menu() -> None:
 
 def menu(chord: ChordController) -> None:
     while True:
-        # clear_screen()
         print_menu()
 
         choice = input("Digite o número da sua escolha: ")
@@ -33,20 +33,23 @@ def menu(chord: ChordController) -> None:
             case "1":
                 chord.start_network()
                 menu_network(chord)
-                input("\nPressione Enter para voltar...")
+            
             case "2":
                 address = input(">")
                 chord.join_network(address)
                 menu_network(chord)
-
+            
             case "3":
                 print("Encerrando...")
                 chord.stop()
+            
+            case _:
+                clear_screen()
 
 
 def menu_network(chord: ChordController) -> None:
     while True:
-        # clear_screen()
+        clear_screen()
         print_menu_network()
 
         choice = input("Digite o número da sua escolha: ")
@@ -55,19 +58,50 @@ def menu_network(chord: ChordController) -> None:
             case "1":
                 print(f"Seu endereço é {chord.get_address()}\n")
                 input("Pressione Enter para continuar...")
+                clear_screen()
 
             case "2":
-                key, value = input("""
+                try:
+                    user_input = input("""
 Insira o conjunto chave-valor a ser adicionado na rede 
-utilizando o formato <chave> = <valor>:\n>""").split(" = ")
-                chord.put(key, value)
+utilizando o formato <chave> = <valor>:\n>""")
+                    print()
+                    if " = " not in user_input:
+                        print("Formato inválido! Use o formato: <chave> = <valor>")
+                        input("Pressione Enter para continuar...")
+                        clear_screen()
+                        continue
+                    part = user_input.split(" = ", 1)
+                    key, value = part
+                    if not key or not value:
+                        print("Chave e valor não podem estar vazios!")
+                        input("Pressione Enter para continuar...")
+                        clear_screen()
+                        continue
+                    if chord.put(key, value):
+                        input("Valor adicionado\nPressione Enter para continuar...")
+                    else:
+                        input("Valor não adicionado\nPressione Enter para continuar...")
+                    
+                except Exception as e:
+                    print(f"Erro ao processar entrada: {e}")
+                    input("Pressione Enter para continuar...")
+                
+                clear_screen()
 
             case "3":
-                key = input("""
-Insira o valor da chave a ser buscada:\n>""")
-                print(chord.get(key))
+                key = input("\nInsira a chave a ser buscada:\n>")
+                result = chord.get(key)
+                if result["success"]:
+                    print(f"{key} = {result['value']}\n(Armazenado no nó: {result['node']})")
+                else:
+                    print("\nChave não encontrada.")
+                    
+                input("\nPressione Enter para continuar...")
+                clear_screen()
 
             case "4":
+                clear_screen()
                 return
 
             case "5":
@@ -76,6 +110,8 @@ Insira o valor da chave a ser buscada:\n>""")
                     print(
                         f"Vizinhos:\nAnterior: {neighbors['prev']}\nPróximo: {neighbors['next']}\n"
                     )
+                    input("Pressione Enter para continuar...")
+                    clear_screen()
 
             case "6":
                 local_dict = chord.getLocalDict()
@@ -84,8 +120,12 @@ Insira o valor da chave a ser buscada:\n>""")
                     for k, v in local_dict["data"].items():
                         print(f"{k}: {v}")
                     print()
+                    input("Pressione Enter para continuar...")
+                    clear_screen()
                 else:
                     print(f"Erro: {local_dict['message']}\n")
+                    input("Pressione Enter para continuar...")
+                    clear_screen()
 
             case "7":
                 finger_table = chord.getFingerTable()
@@ -94,10 +134,19 @@ Insira o valor da chave a ser buscada:\n>""")
                     for i, addr in finger_table["finger_table"].items():
                         print(f"{i}: {addr}")
                     print()
+                    input("Pressione Enter para continuar...")
+                    clear_screen()
                 else:
                     print(f"Erro: {finger_table['message']}\n")
+                    input("Pressione Enter para continuar...")
+                    clear_screen()
             case "8":
                 print(f"ID do Nó: {chord.getId()}\n")
+                input("Pressione Enter para continuar...")
+                clear_screen()
+
+            case "9":
+                log()
 
 
 def print_menu_network() -> None:
@@ -114,7 +163,21 @@ def print_menu_network() -> None:
         "6. Obter Dicionário Local",
         "7. Obter Finger Table",
         "8. Obter ID do Nó",
+        "9. Ver Log",
         "",
     ]
     for line in entries:
         print(line)
+
+
+def log() -> None:
+    try:
+        with open(current_log_file, "r") as log_file:
+            log_content = log_file.read()
+            print("\n=== LOG ===\n")
+            print(log_content)
+            print("\n=====================\n")
+            input("Pressione Enter para continuar...")
+            clear_screen()
+    except Exception as e:
+        print(f"Erro ao ler o arquivo de log: {e}")
