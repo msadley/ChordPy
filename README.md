@@ -55,7 +55,9 @@ O sistema cria um nó local que armazena _referências_ para seus pares, criando
 
 Agora você pode executar os comandos a partir da interface de comando que aparece no terminal:
 
-![screenshot1](assets/screenshot.png)
+<p align="center">
+  <img src="assets/screenshot.png" alt="screenshot">
+</p>
 
 ## Autores
 
