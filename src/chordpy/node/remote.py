@@ -78,7 +78,7 @@ class RemoteNode(Node):
             raise RuntimeError(f"Node at {address} is not reachable")
         except socket.timeout:
             logger.error(f"Connection to {address} timed out")
-            raise RuntimeError(f"Connection to {address} timed out")
+            raise TimeoutError(f"Connection to {address} timed out")
         except Exception as e:
             logger.error(f"Error when requesting {type} from {address}: {e}")
             raise RuntimeError(f"Error when requesting {address}: {e}")
