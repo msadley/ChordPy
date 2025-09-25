@@ -7,6 +7,7 @@ from typing import Dict, List, Optional, Tuple, Final
 from utils import hash, in_interval
 from node.interface import Node
 from node.remote import RemoteNode
+from logger import logger
 
 
 KEY_SPACE: Final[int] = 16
@@ -26,6 +27,8 @@ class LocalNode(Node):
 
         self._finger_table: Dict[int, Node] = {}
         self._lock: threading.Lock = threading.Lock()
+        
+        logger.info(f"LocalNode initialized with ID: {self._id} at {self._address}")
 
     @property
     def next(self) -> Node:
@@ -85,12 +88,14 @@ class LocalNode(Node):
             ip = s.getsockname()[0]
         except Exception:
             ip = "127.0.0.1"
+            logger.warning(f"Failed to determine IP, using {ip}")
         finally:
             if s:
                 s.close()
         return ip
 
     def _update_finger_table(self, existingNode=None) -> None:
+        logger.info(f"Updating finger table for node {self.address}")
         for i in range(KEY_SPACE):
             target = (self.id + 2**i) % (2**KEY_SPACE)
 
@@ -101,8 +106,10 @@ class LocalNode(Node):
                 self.finger_table[i] = existingNode.find_successor(target)
 
     def find_successor(self, key: int, iterations: int = 0) -> Node:
-        print("Finding successor for key:", key)
+        logger.debug(f"Finding successor for key: {key}")
+        
         if iterations > KEY_SPACE:
+            logger.error(f"Recursion error: Successor not found for key {key}")
             raise RecursionError("Successor not found")
 
         if self.prev and in_interval(key, self.prev.id, self.id, include_start=False, include_end=True):
@@ -128,46 +135,59 @@ class LocalNode(Node):
 
         return self
 
-    def get(self, key: str, history: Optional[List[str]] = None) -> str:
+    def get(self, key: str, history: Optional[List[str]] = None) -> Tuple[str, Tuple[str, int]]:
+        logger.info(f"GET request - Key: {key}")
         if history and f"{self.address[0]}:{self.address[1]}" in history:
-            return "Key not found"
+            logger.warning(f"Circular lookup detected for key {key}")
+            return ("Key not found", None)
 
         key_hash = hash(key)
         responsible_node = self.find_successor(key_hash)
 
         if responsible_node == self:
-            return self.data.get(key, "Key not found")
+            value = self.data.get(key, "Key not found")
+            if value == "Key not found":
+                logger.info(f"Key '{key}' not found locally")
+                return (value, None)
+            else:
+                logger.info(f"Key '{key}' found locally with value '{value}'")
+                return (value, self.address)
 
         if history is None:
             history = []
         history.append(f"{self.address[0]}:{self.address[1]}")
 
+        logger.info(f"Forwarding GET request to {responsible_node.address}")
         return responsible_node.get(key, history)
 
     def put(self, key: str, value: str) -> None:
         key_hash: int = hash(key)
+        logger.info(f"PUT request - Key: {key} | Hash: {key_hash}")
         responsible_node: Node = self.find_successor(key_hash)
 
         if responsible_node == self:
-            print("Storing locally")
+            logger.info(f"Storing key '{key}' locally at {self.address}")
             with self._lock:
                 self.data[key] = value
         else:
-            print(f"Storing in node {responsible_node.address}")
+            logger.info(f"Forwarding key '{key}' to node {responsible_node.address}")
             responsible_node.put(key, value)
 
     def join(self, existing_node: Optional[RemoteNode] = None) -> None:
         if existing_node is None:
+            logger.info(f"Starting new Chord network with node {self.address}")
             self.prev = self
             self.next = self
             self._update_finger_table(self)
         else:
+            logger.info(f"Joining network through {existing_node.address}")
             self.next = existing_node.find_successor(self.id)
             self.prev = self.next.prev
             self.data = self.next.pass_data(self)
             self._update_finger_table(existing_node)
             self.next.prev.next = self
             self.next.prev = self
+            logger.info(f"Node {self.address} joined the network")
 
     def fix_fingers(self) -> None:
         i = random.randrange(KEY_SPACE)
@@ -175,6 +195,7 @@ class LocalNode(Node):
         self.finger_table[i] = self.find_successor(target)
 
     def pass_data(self, receiver: Node) -> Dict[str, str]:
+        logger.info(f"Transferring data to node {receiver.address}")
         data_to_transfer: Dict[str, str] = {}
         keys_to_remove: List = []
 
@@ -192,6 +213,7 @@ class LocalNode(Node):
             for key in keys_to_remove:
                 del self.data[key]
 
+        logger.info(f"Transferred {len(data_to_transfer)} keys to {receiver.address}")
         return data_to_transfer
 
     def _stabilize(self) -> None:
@@ -215,12 +237,14 @@ class LocalNode(Node):
                 self.prev = potential_prev
 
     def server_start(self) -> None:
+        logger.info(f"Starting server at {self._host[0]}:{self._host[1]}")
         self._server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self._server_socket.bind(self._host)
         self._server_socket.listen(5)
 
         self._running = True
+        logger.info(f"Server listening at {self._host[0]}:{self._host[1]}")
 
         try:
             while self._running:
@@ -235,11 +259,12 @@ class LocalNode(Node):
                 client_thread.start()
 
         except KeyboardInterrupt:
-            print("\nServer shutting down...")
+            logger.info("Server shutting down due to keyboard interrupt")
         finally:
             self.server_stop()
 
     def server_stop(self) -> None:
+        logger.info("Stopping server")
         self._running = False
         if self._server_socket:
             self._server_socket.close()
@@ -252,20 +277,22 @@ class LocalNode(Node):
                 if not data:
                     break
 
-                print(f"Received data from {addr}: {data}")
+                logger.debug(f"Received data from {addr}: {data}")
                 response = self._process_request(json.loads(data))
-                print(f"Sending response to {addr}: {response}")
+                logger.debug(f"Sending response to {addr}: {response}")
 
                 client_socket.send(json.dumps(response).encode())
 
         except Exception as e:
-            print(f"Error handling client {addr}: {e}")
+            logger.error(f"Error handling client {addr}: {e}")
 
         finally:
-            print(f"Closing client socket {addr}")
+            logger.debug(f"Closing client socket {addr}")
             client_socket.close()
 
     def _process_request(self, request: Dict) -> Dict:
+        logger.info(f"Processing request: {request.get('type')}")
+        
         match request["type"]:
             case "GET_NEXT":
                 return {"next": self.next.address}
@@ -282,15 +309,17 @@ class LocalNode(Node):
                 return {"status": "success"}
 
             case "LOOKUP":
-                return {
-                    "value": self.get(
-                        request["parameters"]["key"],
-                        history=request["parameters"].get("history", []),
-                    )
-                }
+                key = request["parameters"]["key"]
+                history = request["parameters"].get("history", [])
+                logger.info(f"LOOKUP request - Key: {key}")
+                value, node_address = self.get(key, history=history)
+                return {"value": value, "node_address": node_address}
 
             case "PUT":
-                self.put(request["parameters"]["key"], request["parameters"]["value"])
+                key = request["parameters"]["key"]
+                value = request["parameters"]["value"]
+                logger.info(f"PUT request - Key: {key}, Value: {value}")
+                self.put(key, value)
                 return {"status": "success"}
 
             case "FIND_SUCCESSOR":
