@@ -109,6 +109,9 @@ class ChordController:
             self._node.put(key, value)
             logger.info(f"Successfully stored key '{key}'")
             return {"success": True, "message": f"Chave '{key}' armazenada com sucesso"}
+        except TimeoutError as e:
+            logger.error(f"Timeout error: {e}")
+            return {"success": False, "message": str(e), "error_type": "timeout"}
         except Exception as e:
             logger.error(f"Failed to put key '{key}': {e}")
             return {"success": False, "message": str(e)}
