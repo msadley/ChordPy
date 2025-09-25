@@ -26,9 +26,8 @@ O sistema cria um nó local que armazena _referências_ para seus pares, criando
 - **Algoritmo de Hash:** O algoritmo utilizado para gerar os identificadores dos nós e das chaves foi o **SHA-1**.
 - **Espaço de Identificadores:** O anel Chord opera com um espaço de chaves de $16$ bits, o que significa que os identificadores variam de $0$ a $2^{16}-1$ (ou seja, de 0 a 65535).
 
-## Como Usar (Em Breve)
+## Como Usar
 
-_Esta seção será detalhada assim que a implementação da interface de usuário e dos scripts de inicialização estiver concluída._
 
 ### Pré-requisitos
 
@@ -39,7 +38,7 @@ _Esta seção será detalhada assim que a implementação da interface de usuár
 1. **Clone o repositório:**
 
     ```bash
-    git clone <URL_DO_SEU_REPOSITORIO>
+    git clone <https://github.com/msadley/ChordPy.git>
     ```
 
 2. **Navegue até o diretório do projeto:**
@@ -48,19 +47,15 @@ _Esta seção será detalhada assim que a implementação da interface de usuár
     cd ChordPy
     ```
 
-3. **Para iniciar o anel (primeiro nó):**
+3. **Inicie o programa:**
 
     ```bash
-    # Exemplo de comando a ser definido
-    python node.py --port 8000
+    python3 ./src/chordpy/main.py
     ```
 
-4. **Para adicionar um novo nó ao anel:**
+Agora você pode executar os comandos a partir da interface de comando que aparece no terminal:
 
-    ```bash
-    # Exemplo de comando a ser definido
-    python node.py --port 8001 --join 127.0.0.1:8000
-    ```
+![screenshot1](assets/screenshot.png)
 
 ## Autores
 
