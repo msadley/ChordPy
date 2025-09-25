@@ -226,6 +226,21 @@ class LocalNode(Node):
         logger.info(f"Transferred {len(data_to_transfer)} keys to {receiver.address}")
         return data_to_transfer
 
+    def exit_network(self) -> None:
+        logger.info(f"Node {self.address} is exiting the network")
+        if self.prev and self.next and self.prev != self and self.next != self:
+            self.prev.next = self.next
+            self.next.prev = self.prev
+            self.pass_data(self.next)
+            self.next.pass_data(self.prev)
+
+        self._prev = None
+        self._next = None
+        self._finger_table.clear()
+        self._data.clear()
+        self.server_stop()
+        logger.info(f"Node {self.address} has exited the network")
+
     def _stabilize(self) -> None:
         with self._lock:
             if self.next is self:

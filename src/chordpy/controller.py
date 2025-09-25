@@ -64,6 +64,8 @@ class ChordController:
 
     def stop(self) -> None:
         try:
+            logger.info("Exiting network...")
+            self._node.exit_network()
             logger.info("Stopping server...")
             self._node.server_stop()
             logger.info("Server stopped successfully")
