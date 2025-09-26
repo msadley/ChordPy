@@ -193,7 +193,7 @@ class LocalNode(Node):
             logger.info(f"Joining network through {existing_node.address}")
             self.next = existing_node.find_successor(self.id)
             self.prev = self.next.prev
-            self.data = self.next.pass_data(self)
+            self.next.pass_data(self)
             self._update_finger_table(existing_node)
             self.next.prev.next = self
             self.next.prev = self
@@ -204,7 +204,7 @@ class LocalNode(Node):
         target = (self.id + 2**i) % (2**KEY_SPACE)
         self.finger_table[i] = self.find_successor(target)
 
-    def pass_data(self, receiver: Node) -> Dict[str, str]:
+    def pass_data(self, receiver: Node) -> None:
         logger.info(f"Transferring data to node {receiver.address}")
         data_to_transfer: Dict[str, str] = {}
         keys_to_remove: List = []
@@ -223,8 +223,14 @@ class LocalNode(Node):
             for key in keys_to_remove:
                 del self.data[key]
 
+        receiver.update_data(data_to_transfer)
+
         logger.info(f"Transferred {len(data_to_transfer)} keys to {receiver.address}")
-        return data_to_transfer
+
+    def update_data(self, new_data: Dict[str, str]) -> None:
+        with self._lock:
+            self.data.update(new_data)
+        logger.info(f"Node {self.address} updated data with {len(new_data)} new keys")
 
     def exit_network(self) -> None:
         logger.info(f"Node {self.address} is exiting the network")
@@ -375,9 +381,12 @@ class LocalNode(Node):
 
             case "PASS_DATA":
                 receiver_addr = request["parameters"]["receiver"]
-                return self.pass_data(
-                    RemoteNode(Address(receiver_addr[0], receiver_addr[1]))
-                )
+                self.pass_data(RemoteNode(Address(receiver_addr[0], receiver_addr[1])))
+
+            case "UPDATE_DATA":
+                new_data = request["parameters"]["new_data"]
+                self.update_data(new_data)
+                return {"status": "success"}
 
             case "GET_ID":
                 return {"id": self.id}

@@ -83,6 +83,16 @@ class RemoteNode(Node):
             logger.error(f"Error when requesting {type} from {address}: {e}")
             raise RuntimeError(f"Error when requesting {address}: {e}")
 
+    def update_data(self, new_data: Dict[str, str]) -> None:
+        logger.info(
+            f"Updating data at remote node {self.address} with {len(new_data)} items"
+        )
+        try:
+            self._request("UPDATE_DATA", self.address, new_data=new_data)
+        except Exception as e:
+            logger.error(f"Failed to update data: {e}")
+            raise
+
     def put(self, key: str, value: str) -> None:
         logger.info(f"Storing key '{key}' at remote node {self.address}")
         try:
@@ -149,13 +159,10 @@ class RemoteNode(Node):
             logger.error(f"Failed to join network: {e}")
             raise
 
-    def pass_data(self, receiver: Node) -> Dict[str, str]:
+    def pass_data(self, receiver: Node) -> None:
         logger.info(f"Requesting data transfer to {receiver.address}")
         try:
-            result = self._request(
-                "PASS_DATA", self.address, receiver=receiver.address.as_tuple
-            )
-            return result
+            self._request("PASS_DATA", self.address, receiver=receiver.address.as_tuple)
         except Exception as e:
             logger.error(f"Failed to transfer data: {e}")
             raise

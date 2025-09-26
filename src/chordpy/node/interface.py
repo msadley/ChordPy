@@ -52,7 +52,11 @@ class Node(ABC):
         pass
 
     @abstractmethod
-    def pass_data(self, receiver: "Node") -> Dict[str, str]:
+    def pass_data(self, receiver: "Node") -> None:
+        pass
+
+    @abstractmethod
+    def update_data(self, new_data: Dict[str, str]) -> None:
         pass
 
     @abstractmethod
