@@ -1,5 +1,5 @@
-import sys
 import re
+import sys
 from typing import Dict, Any, Optional
 
 from address import Address
@@ -62,17 +62,15 @@ class ChordController:
         logger.info(f"Retrieved node address: {address}")
         return address
 
+    def exit_network(self) -> None:
+        logger.info("Exiting network...")
+        self._node.exit_network()
+
     def stop(self) -> None:
-        try:
-            logger.info("Exiting network...")
-            self._node.exit_network()
-            logger.info("Stopping server...")
-            self._node.server_stop()
-            logger.info("Server stopped successfully")
-            sys.exit(0)
-        except Exception as e:
-            logger.error(f"Error when stopping server: {e}")
-            raise RuntimeError(f"Error caught when stopping program:\n{e}")
+        logger.info("Stopping node...")
+        self._node.server_stop()
+        logger.info("Node stopped")
+        sys.exit(0)
 
     def validate_address(self, address: str) -> Address:
         pattern = r"^(\d{1,3}(\.\d{1,3}){3}):(\d{1,5})$"
@@ -129,10 +127,20 @@ class ChordController:
             if value and value != "Key not found":
                 logger.info(f"Key '{key}' found with value '{value}' at {node_address}")
                 node_str = str(node_address) if node_address else "Unknown"
-                return {"success": True, "key": key, "value": value, "node": node_str, "history": history}
+                return {
+                    "success": True,
+                    "key": key,
+                    "value": value,
+                    "node": node_str,
+                    "history": history,
+                }
             else:
                 logger.warning(f"Key '{key}' not found")
-                return {"success": False, "message": f"Chave '{key}' não encontrada", "history": history}
+                return {
+                    "success": False,
+                    "message": f"Chave '{key}' não encontrada",
+                    "history": history,
+                }
         except Exception as e:
             logger.error(f"Error retrieving key '{key}': {e}")
             return {"success": False, "message": str(e)}

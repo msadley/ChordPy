@@ -41,7 +41,10 @@ class LocalNode(Node):
     def next(self, new_next: Address | Node) -> None:
         with self._lock:
             if isinstance(new_next, Node):
-                self._next = new_next
+                if new_next == self:
+                    self._next = self
+                else:
+                    self._next = new_next
             else:
                 self._next = RemoteNode(new_next)
             self._finger_table[0] = self._next
@@ -56,7 +59,10 @@ class LocalNode(Node):
     def prev(self, new_prev: Address | Node) -> None:
         with self._lock:
             if isinstance(new_prev, Node):
-                self._prev = new_prev
+                if new_prev == self:
+                    self._prev = self
+                else:
+                    self._prev = new_prev
             else:
                 self._prev = RemoteNode(new_prev)
 
@@ -205,26 +211,32 @@ class LocalNode(Node):
         self.finger_table[i] = self.find_successor(target)
 
     def pass_data(self, receiver: Node) -> None:
+        if receiver == self or (self.prev == self and self.next == self):
+            logger.info("Receiver is self, no data transfer needed")
+            return
+
         logger.info(f"Transferring data to node {receiver.address}")
         data_to_transfer: Dict[str, str] = {}
-        keys_to_remove: List = []
+        keys = list(self.data.keys())
 
-        if self.prev != self:
-            start: int = self.prev.id
-        else:
-            start: int = self.id
+        if self.next.id != receiver.id:
+            responsible_node = self.find_successor(receiver.id)
+
+            if responsible_node != self:
+                logger.info(f"Forwarding data transfer to {responsible_node.address}")
+                responsible_node.pass_data(receiver)
+                return
+
+        interval_end = receiver.id
+        if self.prev == receiver:
+            interval_end = self.id
 
         with self._lock:
-            for key, value in self.data.items():
-                if in_interval(hash(key), start, receiver.id):
-                    data_to_transfer[key] = value
-                    keys_to_remove.append(key)
-
-            for key in keys_to_remove:
-                del self.data[key]
+            for key in keys:
+                if in_interval(hash(key), self.prev.id, interval_end):
+                    data_to_transfer[key] = self.data.pop(key)
 
         receiver.update_data(data_to_transfer)
-
         logger.info(f"Transferred {len(data_to_transfer)} keys to {receiver.address}")
 
     def update_data(self, new_data: Dict[str, str]) -> None:
@@ -238,13 +250,11 @@ class LocalNode(Node):
             self.prev.next = self.next
             self.next.prev = self.prev
             self.pass_data(self.next)
-            self.next.pass_data(self.prev)
 
         self._prev = None
         self._next = None
         self._finger_table.clear()
         self._data.clear()
-        self.server_stop()
         logger.info(f"Node {self.address} has exited the network")
 
     def _stabilize(self) -> None:
@@ -392,3 +402,8 @@ class LocalNode(Node):
                 return {"id": self.id}
 
         return {"error": "Unknown request type"}
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, Node):
+            return False
+        return self.address == value.address

@@ -166,3 +166,8 @@ class RemoteNode(Node):
         except Exception as e:
             logger.error(f"Failed to transfer data: {e}")
             raise
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, Node):
+            return False
+        return self.address == value.address

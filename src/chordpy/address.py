@@ -1,4 +1,3 @@
-from __future__ import annotations
 from typing import Tuple
 
 class Address:
@@ -15,7 +14,7 @@ class Address:
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Address):
-            return NotImplemented
+            return False
         return self.ip == other.ip and self.port == other.port
 
     def __hash__(self) -> int:

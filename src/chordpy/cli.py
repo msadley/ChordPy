@@ -33,7 +33,7 @@ def menu(chord: ChordController) -> None:
             case "1":
                 chord.start_network()
                 menu_network(chord)
-            
+
             case "2":
                 address = input(">")
                 result = chord.join_network(address)
@@ -43,11 +43,11 @@ def menu(chord: ChordController) -> None:
                     print(f"\nErro: {result['message']}")
                     input("Pressione Enter para continuar...")
                     clear_screen()
-            
+
             case "3":
                 print("Encerrando...")
                 chord.stop()
-            
+
             case _:
                 print("Opção inválida")
                 input("Pressione Enter para continuar...")
@@ -85,39 +85,45 @@ utilizando o formato <chave> = <valor>:\n>""")
                         input("Pressione Enter para continuar...")
                         clear_screen()
                         continue
-                    
+
                     result = chord.put(key, value)
                     if result["success"]:
                         input("Valor adicionado\nPressione Enter para continuar...")
                     else:
-                        if "não reachable" in result["message"] or "timed out" in result["message"]:
+                        if (
+                            "não reachable" in result["message"]
+                            or "timed out" in result["message"]
+                        ):
                             print(f"ERRO DE CONEXÃO: {result['message']}")
                         else:
                             print(f"Falha ao adicionar o valor: {result['message']}")
                         input("Pressione Enter para continuar...")
-                    
+
                 except Exception as e:
                     print(f"Erro ao processar entrada: {e}")
                     input("Pressione Enter para continuar...")
-    
+
                 clear_screen()
 
             case "3":
                 key = input("\nInsira a chave a ser buscada:\n>")
                 result = chord.get(key)
                 if result["success"]:
-                    print(f"{key} = {result['value']}\n(Armazenado no nó: {result['node']})")
+                    print(
+                        f"{key} = {result['value']}\n(Armazenado no nó: {result['node']})"
+                    )
                     if "history" in result:
                         print("Histórico de busca:")
                         for entry in result["history"]:
                             print(f" - {entry}")
                     else:
                         print("\nChave não encontrada.")
-                    
+
                 input("\nPressione Enter para continuar...")
                 clear_screen()
 
             case "4":
+                chord.exit_network()
                 clear_screen()
                 return
 
@@ -157,7 +163,7 @@ utilizando o formato <chave> = <valor>:\n>""")
                     print(f"Erro: {finger_table['message']}\n")
                     input("Pressione Enter para continuar...")
                     clear_screen()
-                    
+
             case "8":
                 print(f"ID do Nó: {chord.getId()}\n")
                 input("Pressione Enter para continuar...")
@@ -165,7 +171,7 @@ utilizando o formato <chave> = <valor>:\n>""")
 
             case "9":
                 log()
-                
+
             # Adicionado caso default para opções inválidas
             case _:
                 print("Opção inválida")
@@ -197,7 +203,7 @@ def print_menu_network() -> None:
 def log() -> None:
     try:
         clear_screen()
-        
+
         with open(current_log_file, "r") as log_file:
             log_content = log_file.read()
             print("\n=== LOG ===\n")
