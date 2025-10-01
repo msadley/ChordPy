@@ -3,7 +3,7 @@
 > Um sistema de armazenamento chave-valor distribuído baseado no protocolo Chord e implementado em Python.
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue.svg?style=for-the-badge&logo=python)
-![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-yellow.svg?style=for-the-badge)
+![Status](https://img.shields.io/badge/Status-Finalizado-green.svg?style=for-the-badge)
 
 ---
 
